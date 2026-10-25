@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_apps_title">Apps and VPN</string>
+    <string name="most_apps_heading">Choose where VPN works</string>
+    <string name="most_apps_intro">Choose how your apps connect.</string>
+    <string name="most_apps_all">All apps</string>
+    <string name="most_apps_all_hint">All apps use VPN</string>
+    <string name="most_apps_only">Only selected apps</string>
+    <string name="most_apps_only_hint">VPN is used only by selected apps</string>
+    <string name="most_apps_except">Except selected apps</string>
+    <string name="most_apps_except_hint">Selected apps connect without VPN</string>
+    <string name="most_apps_search">Find an app</string>
+    <string name="most_apps_clear_search">Clear search</string>
+    <string name="most_apps_selected_count">Selected: %1$d</string>
+    <string name="most_apps_selected_filter">Selected</string>
+    <string name="most_apps_system_filter">System apps</string>
+    <string name="most_apps_apply">Apply</string>
+    <string name="most_apps_apply_hint">When you leave, an active VPN reconnects with your changes.</string>
+    <string name="most_apps_vpn">Via VPN</string>
+    <string name="most_apps_direct">Direct connection</string>
+    <string name="most_apps_empty_only">No apps selected. Your apps will connect without VPN.</string>
+    <string name="most_apps_empty_except">No exceptions yet. All apps use VPN.</string>
+    <string name="most_apps_all_notice">All apps use VPN. Choose another mode above to set exceptions.</string>
+    <string name="most_apps_no_results">No apps found. Try another search or change the filters.</string>
+    <string name="most_apps_load_failed">Could not load apps.</string>
+    <string name="most_apps_retry">Retry</string>
+    <string name="most_apps_all_short">All</string>
+    <string name="most_apps_only_short">Only</string>
+    <string name="most_apps_except_short">Except</string>
+</resources>

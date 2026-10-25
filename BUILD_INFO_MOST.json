@@ -1,0 +1,46 @@
+{
+  "app": "MOST",
+  "version": "0.4.0",
+  "baseRepository": "https://github.com/2dust/v2rayNG",
+  "baseCommit": "118cf5bc7d0b290947b0827f5ad03e73018d8e5d",
+  "status": "Assembled and signed; device runtime not tested, as requested",
+  "features": [
+    "Exit IP and country via a dedicated forced-proxy diagnostic inbound",
+    "Daemon-owned watchdog, current-server reload, selected backup and retry cooldown",
+    "Device application list visible in all-app mode; selection activates exclusions",
+    "GitHub Releases update discovery, download progress, checksum, package/version/certificate validation and Android installer"
+  ],
+  "apk": {
+    "sha256": "38b56015b8ff49d5fe509c302bc5aced94ddea118747f115dff0105cc27f50cb",
+    "sizeBytes": 83896151,
+    "appId": "net.h1cloud.most",
+    "versionName": "0.4.0",
+    "versionCode": 4000005,
+    "minSdk": 24,
+    "targetSdk": 37,
+    "nativeABIs": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "signingCertificateSha256": "3c6f68986b7a4fdc964f8c6f33ce0b6cb20102c784ddbeac29884605b040a877"
+  },
+  "validation": {
+    "assemblePlaystoreDebug": "PASS",
+    "signingCertificate": "PASS; permanent MOST key; upgrade-compatible with 0.2.0, 0.3.0 and 0.3.1",
+    "Not run": [
+      "JUnit test campaign",
+      "Emulator and physical-device VPN/backup/stop-race scenarios",
+      "Actual OTA installation and permission scenarios on Android",
+      "Lint and full UI/accessibility matrix",
+      "Windows execution of the publication script"
+    ]
+  },
+  "ota": {
+    "repository": "Tombstone1922/MOST",
+    "manifestUrl": "https://github.com/Tombstone1922/MOST/releases/latest/download/most-update.json",
+    "publicationStatus": "Not published by this build; run Publish.cmd from the publication bundle with the owner GitHub account",
+    "installBehavior": "Standard Android confirmation; no silent installation"
+  }
+}

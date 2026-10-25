@@ -1,0 +1,44 @@
+name: MOST Android debug
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, most-v0.1, most-v0.2]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: '14742923'
+          packages: 'platforms;android-37.0 build-tools;37.0.0 platform-tools'
+      - name: Native libraries
+        shell: bash
+        run: |
+          sdkmanager 'ndk;30.0.16248370'
+          export NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
+          bash compile-hevtun.sh
+          mkdir -p V2rayNG/app/libs
+          cp -r libs/. V2rayNG/app/libs/
+          curl -fL --retry 3 https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.10.17/libv2ray.aar -o V2rayNG/app/libs/libv2ray.aar
+          echo 'fd6cb61fed873e465c3064327dffbcb22dc3fd78260d162ec9e868db2582495f  V2rayNG/app/libs/libv2ray.aar' | sha256sum -c -
+      - name: Focused tests
+        working-directory: V2rayNG
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.fmt.ImportTextParserTest --tests com.v2ray.ang.fmt.VlessImportRegressionTest --tests com.v2ray.ang.ClipboardImportTest --tests com.v2ray.ang.ui.main.MostImportViewModelTest --tests com.v2ray.ang.handler.ProfileBatchRollbackTest --tests com.v2ray.ang.ui.main.MostPresentationTest
+      - name: Unit tests and APK
+        working-directory: V2rayNG
+        run: ./gradlew :app:testPlaystoreDebugUnitTest :app:compilePlaystoreDebugKotlin :app:assemblePlaystoreDebug :app:lintPlaystoreDebug
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MOST-Android
+          path: V2rayNG/app/build/outputs/apk/playstore/debug/*.apk

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_health_online">Internet through VPN is working</string>
+    <string name="most_health_recovering">Restoring the connection…</string>
+    <string name="most_health_failed">VPN is enabled but internet checks are failing</string>
+    <string name="most_health_no_network">No internet connection</string>
+    <string name="most_health_unsupported">Exit checks are unavailable for this profile</string>
+    <string name="most_health_checking">Checking the connection…</string>
+    <string name="most_exit_ip">Exit IP: %1$s</string>
+    <string name="most_exit_country">Exit country: %1$s</string>
+    <string name="most_exit_unknown">Connected. Exit IP is temporarily unavailable.</string>
+    <string name="most_health_refresh">Refresh IP and connection</string>
+    <string name="most_auto_recovery">Restore the connection automatically</string>
+    <string name="most_backup_hint">Choose a backup in the server list.</string>
+    <string name="most_backup_configured">After another failure, use the selected backup server.</string>
+    <string name="most_backup_selected">Backup server ✓</string>
+    <string name="most_backup_choose">Use as backup</string>
+    <string name="most_ota_title">MOST updates</string>
+    <string name="most_ota_current">Installed version %1$s</string>
+    <string name="most_ota_checking">Checking for updates…</string>
+    <string name="most_ota_latest">The installed version is up to date</string>
+    <string name="most_ota_available">A new version is available</string>
+    <string name="most_ota_downloading">Downloading update…</string>
+    <string name="most_ota_ready">Update verified and ready to install</string>
+    <string name="most_ota_hint">New versions are downloaded from GitHub Releases.</string>
+    <string name="most_ota_progress">Downloaded: %1$d%%</string>
+    <string name="most_ota_download">Download update</string>
+    <string name="most_ota_install">Install update</string>
+    <string name="most_ota_install_hint">Android asks you to confirm installation. Allow MOST to install apps for your first update.</string>
+    <string name="most_ota_check">Check for updates</string>
+    <string name="most_ota_auto">Check for updates when MOST opens</string>
+    <string name="most_ota_repo">Update source: owner/repository</string>
+    <string name="most_ota_save_repo">Save update source</string>
+    <string name="most_ota_bad_repo">Enter a repository in owner/name format.</string>
+    <string name="most_ota_bad_manifest">The update manifest is missing or invalid.</string>
+    <string name="most_ota_not_published">No MOST release has been published in this repository yet.</string>
+    <string name="most_ota_server_error">Could not load the update. Check your connection and GitHub access.</string>
+    <string name="most_ota_bad_apk">The update is damaged or incompatible with this MOST version. Installation was cancelled.</string>
+    <string name="most_ota_bad_signature">The update is not signed by MOST. Installation was cancelled.</string>
+    <string name="most_ota_install_error">Could not open the installer. Check permission to install apps from MOST.</string>
+    <string name="most_ota_banner">A MOST update is available</string>
+</resources>

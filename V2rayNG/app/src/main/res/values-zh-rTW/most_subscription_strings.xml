@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_sub_hwid_required">The server requires a device ID (HWID) but did not accept it. Check the subscription settings in your panel.</string>
+    <string name="most_sub_device_limit">The subscription device limit has been reached. Remove an unused device or increase the limit in your panel, then retry.</string>
+    <string name="most_sub_access_denied">The server denied access to this subscription. Check that the client is enabled and access has not expired.</string>
+    <string name="most_sub_not_found">The server could not find the subscription or rejected this device. Copy the current URL from your panel and check client access.</string>
+    <string name="most_sub_rate_limit">Too many subscription requests. Wait a moment and retry.</string>
+    <string name="most_sub_server_error">The subscription server is temporarily unavailable. Try again later.</string>
+    <string name="most_sub_http_error">The server rejected this subscription request. Check client access and subscription settings in your panel.</string>
+    <string name="most_sub_network">Could not connect to the subscription server. Check your internet connection and whether the address is reachable.</string>
+    <string name="most_sub_empty_response">The server returned an empty subscription. Check that connections are assigned to this client.</string>
+    <string name="most_sub_no_profiles">The server response has no supported profiles. Use a subscription containing VLESS links, rather than a panel web page.</string>
+</resources>

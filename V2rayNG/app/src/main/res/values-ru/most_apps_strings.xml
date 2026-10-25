@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_apps_title">Приложения без VPN</string>
+    <string name="most_apps_heading">Где работает VPN</string>
+    <string name="most_apps_intro">Настрой подключение для каждого приложения.</string>
+    <string name="most_apps_all">Все приложения</string>
+    <string name="most_apps_all_hint">Все приложения используют VPN</string>
+    <string name="most_apps_only">Только выбранные</string>
+    <string name="most_apps_only_hint">VPN только для выбранных приложений</string>
+    <string name="most_apps_except">Кроме выбранных</string>
+    <string name="most_apps_except_hint">Выбранные работают без VPN</string>
+    <string name="most_apps_search">Найти приложение</string>
+    <string name="most_apps_clear_search">Очистить поиск</string>
+    <string name="most_apps_selected_count">Выбрано: %1$d</string>
+    <string name="most_apps_selected_filter">Выбранные</string>
+    <string name="most_apps_system_filter">Системные</string>
+    <string name="most_apps_apply">Применить</string>
+    <string name="most_apps_apply_hint">При выходе активный VPN переподключится с новым выбором.</string>
+    <string name="most_apps_vpn">Через VPN</string>
+    <string name="most_apps_direct">Напрямую</string>
+    <string name="most_apps_empty_only">Пока ничего не выбрано — приложения будут работать без VPN.</string>
+    <string name="most_apps_empty_except">Пока нет исключений — все приложения используют VPN.</string>
+    <string name="most_apps_all_notice">Все приложения используют VPN. Чтобы настроить исключения, выбери один из режимов выше.</string>
+    <string name="most_apps_no_results">Приложения не найдены. Попробуй другой запрос или измени фильтры.</string>
+    <string name="most_apps_load_failed">Не удалось загрузить приложения.</string>
+    <string name="most_apps_retry">Повторить</string>
+    <string name="most_apps_all_short">Все</string>
+    <string name="most_apps_only_short">Только</string>
+    <string name="most_apps_except_short">Без VPN</string>
+</resources>

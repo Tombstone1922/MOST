@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_health_online">Интернет через VPN работает</string>
+    <string name="most_health_recovering">Восстанавливаем соединение…</string>
+    <string name="most_health_failed">VPN включён, но проверка интернета не проходит</string>
+    <string name="most_health_no_network">Нет подключения к интернету</string>
+    <string name="most_health_unsupported">Для этого профиля проверка выхода недоступна</string>
+    <string name="most_health_checking">Проверяем соединение…</string>
+    <string name="most_exit_ip">IP выхода: %1$s</string>
+    <string name="most_exit_country">Страна выхода: %1$s</string>
+    <string name="most_exit_unknown">Связь есть. Определить IP выхода пока не удалось.</string>
+    <string name="most_health_refresh">Обновить IP и состояние</string>
+    <string name="most_auto_recovery">Восстанавливать связь автоматически</string>
+    <string name="most_backup_hint">Запасной сервер можно отметить в списке серверов.</string>
+    <string name="most_backup_configured">После повторного сбоя подключим выбранный запасной сервер.</string>
+    <string name="most_backup_selected">Запасной сервер ✓</string>
+    <string name="most_backup_choose">Сделать запасным</string>
+    <string name="most_ota_title">Обновления MOST</string>
+    <string name="most_ota_current">Установлена версия %1$s</string>
+    <string name="most_ota_checking">Проверяем обновления…</string>
+    <string name="most_ota_latest">Установлена актуальная версия</string>
+    <string name="most_ota_available">Доступна новая версия</string>
+    <string name="most_ota_downloading">Скачиваем обновление…</string>
+    <string name="most_ota_ready">Обновление проверено и готово к установке</string>
+    <string name="most_ota_hint">Новые версии загружаются из GitHub Releases.</string>
+    <string name="most_ota_progress">Загружено: %1$d%%</string>
+    <string name="most_ota_download">Скачать обновление</string>
+    <string name="most_ota_install">Установить обновление</string>
+    <string name="most_ota_install_hint">Android попросит подтвердить установку. При первом обновлении разреши установку приложений из MOST.</string>
+    <string name="most_ota_check">Проверить обновления</string>
+    <string name="most_ota_auto">Проверять обновления при открытии MOST</string>
+    <string name="most_ota_repo">Источник обновлений: владелец/репозиторий</string>
+    <string name="most_ota_save_repo">Сохранить источник</string>
+    <string name="most_ota_bad_repo">Укажи репозиторий в формате владелец/имя.</string>
+    <string name="most_ota_bad_manifest">Файл обновления отсутствует или имеет неверный формат.</string>
+    <string name="most_ota_not_published">Релиз MOST ещё не опубликован в этом репозитории.</string>
+    <string name="most_ota_server_error">Не удалось загрузить обновление. Проверь соединение и доступ к GitHub.</string>
+    <string name="most_ota_bad_apk">Файл обновления повреждён или не подходит для этой версии MOST. Установка отменена.</string>
+    <string name="most_ota_bad_signature">Подпись обновления не принадлежит MOST. Установка отменена.</string>
+    <string name="most_ota_install_error">Не удалось открыть установку. Проверь разрешение на установку приложений из MOST.</string>
+    <string name="most_ota_banner">Доступно обновление MOST</string>
+</resources>
