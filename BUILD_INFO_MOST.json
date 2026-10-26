@@ -3,7 +3,7 @@
   "version": "0.4.1",
   "baseRepository": "https://github.com/2dust/v2rayNG",
   "baseCommit": "118cf5bc7d0b290947b0827f5ad03e73018d8e5d",
-  "status": "Source prepared; GitHub Actions records the assembly result. Device runtime not tested.",
+  "status": "GitHub Actions universal APK assembly and MostPresentationTest passed; signing Secrets not configured; device runtime not tested.",
   "features": [
     "Exit IP and country via a dedicated forced-proxy diagnostic inbound",
     "Daemon-owned watchdog, current-server reload, selected backup and retry cooldown",
@@ -13,8 +13,8 @@
   ],
   "validation": {
     "scriptsAndResources": "Python compilation, shell syntax and XML parsing passed locally",
-    "assemblePlaystoreDebug": "Pending GitHub Actions",
-    "MostPresentationTest": "Pending GitHub Actions",
+    "assemblePlaystoreDebug": "PASS: https://github.com/Tombstone1922/MOST/actions/runs/40318881759",
+    "MostPresentationTest": "PASS in the same GitHub Actions run",
     "Not run": [
       "Emulator and physical-device UI and VPN scenarios",
       "Actual OTA installation",
@@ -25,7 +25,7 @@
   "ota": {
     "repository": "Tombstone1922/MOST",
     "manifestUrl": "https://github.com/Tombstone1922/MOST/releases/latest/download/most-update.json",
-    "publicationStatus": "GitHub Actions publishes the existing signed 0.4.0; new builds require the permanent MOST signing key in Actions Secrets.",
+    "publicationStatus": "Signed 0.4.0 published at https://github.com/Tombstone1922/MOST/releases/tag/v0.4.0. The 0.4.1 CI artifact uses a debug certificate; configure Actions Secrets for signed OTA publication.",
     "installBehavior": "Standard Android confirmation; no silent installation"
   },
   "previousSignedApk": {
