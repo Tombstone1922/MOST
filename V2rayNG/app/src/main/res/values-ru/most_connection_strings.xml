@@ -28,7 +28,7 @@
     <string name="most_ota_install">Установить обновление</string>
     <string name="most_ota_install_hint">Android попросит подтвердить установку. При первом обновлении разреши установку приложений из MOST.</string>
     <string name="most_ota_check">Проверить обновления</string>
-    <string name="most_ota_auto">Проверять обновления при открытии MOST</string>
+    <string name="most_ota_auto">Проверять в фоне и уведомлять</string>
     <string name="most_ota_repo">Источник обновлений: владелец/репозиторий</string>
     <string name="most_ota_save_repo">Сохранить источник</string>
     <string name="most_ota_bad_repo">Укажи репозиторий в формате владелец/имя.</string>
@@ -39,4 +39,9 @@
     <string name="most_ota_bad_signature">Подпись обновления не принадлежит MOST. Установка отменена.</string>
     <string name="most_ota_install_error">Не удалось открыть установку. Проверь разрешение на установку приложений из MOST.</string>
     <string name="most_ota_banner">Доступно обновление MOST</string>
+    <string name="most_ota_channel">Обновления MOST</string>
+    <string name="most_ota_notice_title">Доступен MOST %1$s</string>
+    <string name="most_ota_notice_body">Нажмите, чтобы посмотреть изменения и обновить приложение.</string>
+    <string name="most_ota_background_hint">Проверка примерно раз в 6 часов при наличии сети. Android может откладывать её. Разрешите уведомления, чтобы получать сообщения о новых версиях.</string>
+    <string name="most_ota_notification_settings">Разрешения уведомлений</string>
 </resources>

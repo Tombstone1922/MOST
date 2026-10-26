@@ -11,6 +11,8 @@ import java.io.Closeable
 
 interface MainDataSource : Closeable {
     fun getMostRouteSelection(): com.v2ray.ang.core.MostRouteSelection = com.v2ray.ang.core.MostRouteSelection()
+    fun getMostDirectRoutes(): Boolean = getMostRouteSelection().directOnly
+    fun setMostDirectRoutes(value: Boolean) {}
     fun getMostRouteCandidates(groupId: String): List<com.v2ray.ang.core.MostRouteCandidate> = emptyList()
     fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection): String = ""
     fun setMostRouteSelection(selection: com.v2ray.ang.core.MostRouteSelection) { setSelectServer(selection.preferredGuid) }

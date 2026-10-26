@@ -59,6 +59,7 @@ data class MainUiState(
     val routeBusy: Boolean = false,
     val connectionFailure: Int? = null,
     val subscriptionFailure: com.v2ray.ang.dto.SubscriptionFailure? = null,
+    val directRoutes: Boolean = false,
 ) {
     val canImport: Boolean get() = importPreview.ready && !importAnalyzing && !importBusy &&
         importResult == null && (!importPreview.needsHttpConsent || importAllowHttp)
@@ -69,6 +70,7 @@ data class MainUiState(
  */
 sealed interface MainAction {
     data class ChooseCountry(val country: String) : MainAction
+    data class ShowDirectRoutes(val enabled: Boolean) : MainAction
     data object DismissSubscriptionFailure : MainAction
     data object CheckAppUpdates : MainAction
     data object RefreshConnectionHealth : MainAction

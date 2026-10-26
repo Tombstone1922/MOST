@@ -28,3 +28,10 @@ Native dependencies and dependency versions were preserved. No real subscription
 - Локально: `git diff --check`; новые XML-файлы разобраны, наборы ключей совпадают во всех поставляемых локалях.
 - GitHub Actions: `:app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest --tests com.v2ray.ang.core.MostRoutePolicyTest :app:assemblePlaystoreDebug`; результат фиксируется запуском Actions. Проверяется выбор страны/подписки, исчерпание кандидатов, приоритет ручной команды, запоминание допустимого рабочего профиля и сопоставление страны выхода.
 - Not run: эмулятор/физическое устройство, переключение и сбои при работе в VPN/proxy-only/root, нормальная/повторная остановка и остановка во время переключения, TalkBack/клавиатура/D-pad/IME, смена ориентации и восстановление экрана, реальная установка OTA. Пользователь попросил не запускать повторную широкую серию проверок; нативные зависимости и ABI не менялись.
+
+## 0.4.3 — прямые подключения и фоновые уведомления
+
+- Локально: проверка XML/наборов строк и `git diff --check`.
+- Одна сборка в Actions: `:app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest --tests com.v2ray.ang.core.MostRoutePolicyTest --tests com.v2ray.ang.handler.MostUpdateNoticeTest :app:assemblePlaystoreDebug`. Проверяется разделение direct/bridge, исчерпание только своего типа, подсчёт стран, чтение прежнего JSON без directOnly, правило однократного уведомления и сравнение фактических кодов версии. Результат — в запуске Actions для этого коммита.
+- Not run: устройство/эмулятор, переключение чекбокса и выбор страны при работающем VPN; повторное открытие/восстановление экрана; TalkBack/клавиатура/D-pad; WorkManager после закрытия приложения/перезагрузки/Doze; разрешение и запрет уведомлений на API 24/26/33+; отмена задания, реальный переход из уведомления и OTA-установка. По просьбе пользователя широкая серия и эмулятор не запускаются.
+- Новых нативных зависимостей, серверов уведомлений и изменений VPN-сервисов нет. Фоновые проверки не запускают VPN и не загружают APK.

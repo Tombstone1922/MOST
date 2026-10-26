@@ -4,10 +4,18 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkerParameters
+import androidx.work.multiprocess.RemoteWorkManager
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.CheckUpdateResult
+import com.v2ray.ang.helper.NotificationHelper
 import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CancellationException
@@ -29,11 +37,13 @@ class MostUpdateException(val messageRes: Int) : Exception("MOST update failure:
 /** Owns release discovery and APK verification. Installation remains Android-owned. */
 object UpdateCheckerManager {
     private const val CERTIFICATE = "3c6f68986b7a4fdc964f8c6f33ce0b6cb20102c784ddbeac29884605b040a877"
+    private const val BACKGROUND_WORK = "most-release-notifications"
     fun repository() = MmkvManager.decodeSettingsString("most_ota_repository", "Tombstone1922/MOST").orEmpty()
     fun saveRepository(value: String) {
         val clean = value.trim().removePrefix("https://github.com/").trimEnd('/')
         if (!clean.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) throw MostUpdateException(R.string.most_ota_bad_repo)
         check(MmkvManager.encodeSettings("most_ota_repository", clean))
+        NotificationHelper.cancelMostUpdate(com.v2ray.ang.AngApplication.application)
     }
     @Suppress("DEPRECATION")
     fun currentVersionCode(): Int {
@@ -44,8 +54,61 @@ object UpdateCheckerManager {
         return archiveVersion(info).toInt()
     }
     fun autoCheck() = MmkvManager.decodeSettingsBool("most_ota_auto_check", true)
-    fun setAutoCheck(value: Boolean) { check(MmkvManager.encodeSettings("most_ota_auto_check", value)) }
+    suspend fun setAutoCheck(value: Boolean) = withContext(Dispatchers.IO) {
+        check(MmkvManager.encodeSettings("most_ota_auto_check", value))
+        syncBackgroundChecks()
+    }
+
+    /** Uses the existing :bg WorkManager owner, independent of the VPN/Activity lifetime. */
+    private fun syncBackgroundChecks() {
+        val context = com.v2ray.ang.AngApplication.application
+        val manager = RemoteWorkManager.getInstance(context)
+        if (autoCheck()) {
+            val request = PeriodicWorkRequestBuilder<ReleaseCheckTask>(6, TimeUnit.HOURS)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
+                .build()
+            manager.enqueueUniquePeriodicWork(BACKGROUND_WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+                .get(20, TimeUnit.SECONDS)
+        } else {
+            manager.cancelUniqueWork(BACKGROUND_WORK).get(20, TimeUnit.SECONDS)
+            NotificationHelper.cancelMostUpdate(context)
+        }
+    }
+
+    /** Pure decision shared by the worker and its focused regression test. */
+    internal fun shouldNotify(enabled: Boolean, installed: Int, available: Int, notified: Int): Boolean =
+        enabled && available > installed && available > notified
+
+    class ReleaseCheckTask(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+        override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+            if (!autoCheck()) return@withContext Result.success()
+            val repo = repository()
+            try {
+                val result = checkForUpdate()
+                ensureActive()
+                if (repository() != repo || !autoCheck()) return@withContext Result.success()
+                val key = "most_ota_notified:$repo"
+                val notified = MmkvManager.decodeSettingsString(key)?.toIntOrNull() ?: 0
+                if (shouldNotify(autoCheck(), currentVersionCode(), result.versionCode, notified)) {
+                    if (NotificationHelper.notifyMostUpdate(applicationContext, result.latestVersion.orEmpty())) {
+                        check(MmkvManager.encodeSettings(key, result.versionCode.toString()))
+                    }
+                } else if (!result.hasUpdate) NotificationHelper.cancelMostUpdate(applicationContext)
+                Result.success()
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "MOST release check failed: component=background", error)
+                if (runAttemptCount < 2 && (error is java.io.IOException ||
+                        error is MostUpdateException && error.messageRes == R.string.most_ota_server_error)) Result.retry()
+                else Result.success()
+            }
+        }
+    }
     suspend fun checkAutomatically(): Boolean = withContext(Dispatchers.IO) {
+        try { syncBackgroundChecks()
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (error: Exception) { LogUtil.e(AppConfig.TAG, "MOST release schedule failed: component=background", error) }
         if (!autoCheck()) return@withContext false
         val repo = repository()
         val key = "most_ota_cache:$repo"
@@ -67,8 +130,9 @@ object UpdateCheckerManager {
         check(MmkvManager.encodeSettings(key, "$now:$code"))
         code > currentVersionCode()
     }
-    private fun client(proxy: Boolean): OkHttpClient {
-        val b = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).followSslRedirects(false)
+    private fun client(proxy: Boolean, manifest: Boolean = false): OkHttpClient {
+        val b = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS)
+            .callTimeout(if (manifest) 45 else 0, TimeUnit.SECONDS).followSslRedirects(false)
         if (proxy) {
             b.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", SettingsManager.getHttpPort())))
             val user = SettingsManager.getSocksUsername(); val password = SettingsManager.getSocksPassword()
@@ -85,25 +149,31 @@ object UpdateCheckerManager {
     }
     private fun readManifest(url: String): com.google.gson.JsonObject {
         var last: Exception? = null
-        for (proxy in listOf(false, true)) try {
-            client(proxy).newCall(request(url)).execute().use { response ->
-                if (response.code == 404) throw MostUpdateException(R.string.most_ota_not_published)
-                if (!response.isSuccessful) throw MostUpdateException(R.string.most_ota_server_error)
-                if (response.request.url.scheme != "https") throw MostUpdateException(R.string.most_ota_bad_manifest)
-                val bytes = java.io.ByteArrayOutputStream()
-                response.body.byteStream().use { input ->
-                    val buffer = ByteArray(8192)
-                    while (true) {
-                        val count = input.read(buffer); if (count < 0) break
-                        if (bytes.size() + count > 1_048_576) throw MostUpdateException(R.string.most_ota_bad_manifest)
-                        bytes.write(buffer, 0, count)
+        for (proxy in listOf(false, true)) {
+            val http = client(proxy, manifest = true)
+            try {
+                http.newCall(request(url)).execute().use { response ->
+                    if (response.code == 404) throw MostUpdateException(R.string.most_ota_not_published)
+                    if (!response.isSuccessful) throw MostUpdateException(R.string.most_ota_server_error)
+                    if (response.request.url.scheme != "https") throw MostUpdateException(R.string.most_ota_bad_manifest)
+                    val bytes = java.io.ByteArrayOutputStream()
+                    response.body.byteStream().use { input ->
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            val count = input.read(buffer); if (count < 0) break
+                            if (bytes.size() + count > 1_048_576) throw MostUpdateException(R.string.most_ota_bad_manifest)
+                            bytes.write(buffer, 0, count)
+                        }
                     }
+                    return JsonUtil.parseString(bytes.toString("UTF-8"))?.asJsonObject ?: throw MostUpdateException(R.string.most_ota_bad_manifest)
                 }
-                return JsonUtil.parseString(bytes.toString("UTF-8"))?.asJsonObject ?: throw MostUpdateException(R.string.most_ota_bad_manifest)
+            } catch (e: Exception) {
+                if (e is MostUpdateException && e.messageRes in listOf(R.string.most_ota_not_published, R.string.most_ota_bad_manifest)) throw e
+                last = e
+            } finally {
+                http.connectionPool.evictAll()
+                http.dispatcher.executorService.shutdown()
             }
-        } catch (e: Exception) {
-            if (e is MostUpdateException && e.messageRes in listOf(R.string.most_ota_not_published, R.string.most_ota_bad_manifest)) throw e
-            last = e
         }
         throw last ?: MostUpdateException(R.string.most_ota_server_error)
     }

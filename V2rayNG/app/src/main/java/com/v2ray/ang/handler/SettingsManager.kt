@@ -52,6 +52,9 @@ object SettingsManager {
         check(MmkvManager.encodeSettings("most_route_selection", JsonUtil.toJson(selection)))
     }
 
+    fun getMostDirectRoutes() = MmkvManager.decodeSettingsBool("most_show_direct_routes", getMostRouteSelection().directOnly)
+    fun setMostDirectRoutes(value: Boolean) { check(MmkvManager.encodeSettings("most_show_direct_routes", value)) }
+
     fun getMostRouteCandidates(groupId: String): List<com.v2ray.ang.core.MostRouteCandidate> {
         val guids = if (groupId.isBlank()) MmkvManager.decodeAllServerList() else MmkvManager.decodeServerList(groupId)
         return guids.distinct().mapNotNull { guid ->
@@ -67,11 +70,13 @@ object SettingsManager {
     }
 
     fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection): String =
-        MmkvManager.decodeSettingsString("most_last_route:${selection.groupId}:${selection.country}").orEmpty()
+        MmkvManager.decodeSettingsString("most_last_route:${selection.groupId}:${selection.country}:${selection.directOnly}")
+            // The 0.4.2 cache had no route type. Policy revalidates this GUID before using it.
+            ?.takeIf { it.isNotBlank() } ?: MmkvManager.decodeSettingsString("most_last_route:${selection.groupId}:${selection.country}").orEmpty()
 
     fun rememberMostRoute(selection: com.v2ray.ang.core.MostRouteSelection, guid: String) {
         if (selection.enabled && selection == getMostRouteSelection() && getMostLastRoute(selection) != guid) {
-            if (!MmkvManager.encodeSettings("most_last_route:${selection.groupId}:${selection.country}", guid))
+            if (!MmkvManager.encodeSettings("most_last_route:${selection.groupId}:${selection.country}:${selection.directOnly}", guid))
                 LogUtil.w(AppConfig.TAG, "MOST route cache write failed: profile=$guid")
         }
     }

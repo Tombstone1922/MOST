@@ -1,16 +1,18 @@
 {
   "app": "MOST",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "baseRepository": "https://github.com/2dust/v2rayNG",
   "baseCommit": "118cf5bc7d0b290947b0827f5ad03e73018d8e5d",
-  "status": "Source prepared; assembly, two focused test classes and permanent signing run in GitHub Actions. Device runtime not tested.",
+  "status": "Source prepared; one CI assembly, three focused test classes and permanent signing. Device notification and route UI scenarios not run.",
   "features": [
     "Exit IP and country via a dedicated forced-proxy diagnostic inbound",
     "Daemon-owned watchdog, current-server reload, selected backup and retry cooldown",
     "Device application list visible in all-app mode; selection activates exclusions",
     "GitHub Releases update discovery, download progress, checksum, package/version/certificate validation and Android installer",
     "Distinct subscription titles, local-profile group, counts, per-card refresh and rename",
-    "Country cards with per-subscription automatic failover, manual override, request acknowledgement and clear failure states"
+    "Country cards with per-subscription automatic failover, manual override, request acknowledgement and clear failure states",
+    "Separated bridge/direct country browsing and failover, backwards-compatible route records",
+    "Background release checks via existing WorkManager, permission-aware version-deduplicated notifications"
   ],
   "validation": {
     "xmlAndWhitespace": "PASS locally",
@@ -20,8 +22,10 @@
     "Not run": [
       "Device and emulator VPN/proxy-only/root recovery and stop-race scenarios",
       "Accessibility, IME and state-restoration matrix",
-      "Actual OTA installation"
-    ]
+      "Actual OTA installation",
+      "Background scheduling, notification permission/channels and tap on physical device or emulator"
+    ],
+    "MostUpdateNoticeTest": "Pending GitHub Actions"
   },
   "ota": {
     "repository": "Tombstone1922/MOST",

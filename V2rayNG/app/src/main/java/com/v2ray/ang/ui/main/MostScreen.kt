@@ -140,6 +140,8 @@ internal fun MostScreen(
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 if (state.mostRoute.enabled) {
                                     Text(stringResource(R.string.most_route_auto), color = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(if (state.mostRoute.directOnly) R.string.most_route_direct else R.string.most_route_bridge),
+                                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                                     Text(stringResource(R.string.most_route_scope), style = MaterialTheme.typography.bodySmall)
                                 } else if (profile != null) {
                                     Text(profile.remarks, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -215,7 +217,7 @@ internal fun MostScreen(
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(state.groups, key = { it.id }) { groupItem ->
                                 FilterChip(selected = state.selectedGroupId == groupItem.id,
-                                    onClick = { onAction(MainAction.SelectGroup(groupItem.id)) }, label = { Text(groupItem.remarks) })
+                                    onClick = { onAction(MainAction.SelectGroup(groupItem.id)) }, enabled = !state.routeBusy, label = { Text(groupItem.remarks) })
                             }
                         }
                     }
@@ -227,6 +229,20 @@ internal fun MostScreen(
                     }
                     if (!showConnections) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
+                            Row(Modifier.fillMaxWidth().toggleable(value = state.directRoutes, enabled = !state.routeBusy,
+                                role = androidx.compose.ui.semantics.Role.Checkbox,
+                                onValueChange = { onAction(MainAction.ShowDirectRoutes(it)) }).padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = state.directRoutes, onCheckedChange = null, enabled = !state.routeBusy)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.most_route_direct))
+                                    Text(stringResource(R.string.most_route_direct_hint), style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
                             Text(stringResource(R.string.most_route_country_hint), style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -236,7 +252,7 @@ internal fun MostScreen(
                         }
                         items(state.routeCountries, key = { it.country }) { country ->
                             val selected = state.mostRoute.enabled && state.mostRoute.country == country.country &&
-                                state.mostRoute.groupId == state.selectedGroupId
+                                state.mostRoute.groupId == state.selectedGroupId && state.mostRoute.directOnly == state.directRoutes
                             Card(onClick = { onAction(MainAction.ChooseCountry(country.country)); tab = 0 }, enabled = !state.routeBusy,
                                 modifier = Modifier.fillMaxWidth().semantics { this.selected = selected }, shape = RoundedCornerShape(24.dp),
                                 colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)) {

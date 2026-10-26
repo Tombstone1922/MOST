@@ -337,6 +337,7 @@ class MainViewModel(
     fun onAction(action: MainAction) {
         when (action) {
             is MainAction.ChooseCountry -> chooseMostRoute(country = action.country)
+            is MainAction.ShowDirectRoutes -> showMostDirectRoutes(action.enabled)
             MainAction.DismissSubscriptionFailure -> _uiState.update { it.copy(subscriptionFailure = null) }
             MainAction.CheckAppUpdates -> checkMostUpdates()
             MainAction.RefreshConnectionHealth -> dataSource.sendMsg2Service(AppConfig.MSG_MOST_HEALTH_REQUEST, "")
@@ -594,7 +595,8 @@ class MainViewModel(
                 val selectedGroup = resolveSelectedGroup(groups,
                     if (forceRefresh) dataSource.getSelectedSubscriptionId() else uiState.value.selectedGroupId)
                 val route = dataSource.getMostRouteSelection()
-                val counts = dataSource.getMostRouteCandidates(selectedGroup).groupingBy { it.country }.eachCount()
+                val direct = dataSource.getMostDirectRoutes()
+                val counts = com.v2ray.ang.core.MostRoutePolicy.countryCounts(dataSource.getMostRouteCandidates(selectedGroup), direct)
                 val countries = com.v2ray.ang.core.MostRoutePolicy.countries.mapNotNull { code ->
                     counts[code]?.let { MostCountryUiModel(code, it) }
                 }
@@ -610,6 +612,7 @@ class MainViewModel(
                             groups = groups,
                             subscriptions = subscriptionRows,
                             mostRoute = route,
+                            directRoutes = direct,
                             routeCountries = countries,
                             selectedGroupId = selectedGroup,
                             selectedGuid = dataSource.getSelectServer(),
@@ -968,9 +971,10 @@ class MainViewModel(
             try {
                 dataSource.setSelectedSubscriptionId(id)
                 updateGroupUi(id, loadGroup(id))
-                val counts = dataSource.getMostRouteCandidates(id).groupingBy { it.country }.eachCount()
+                val direct = dataSource.getMostDirectRoutes()
+                val counts = com.v2ray.ang.core.MostRoutePolicy.countryCounts(dataSource.getMostRouteCandidates(id), direct)
                 val countries = com.v2ray.ang.core.MostRoutePolicy.countries.mapNotNull { code -> counts[code]?.let { MostCountryUiModel(code, it) } }
-                _uiState.update { if (it.selectedGroupId == id) it.copy(routeCountries = countries) else it }
+                _uiState.update { if (it.selectedGroupId == id && it.directRoutes == direct) it.copy(routeCountries = countries) else it }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -1022,15 +1026,41 @@ class MainViewModel(
     /** Explicit profile selection disables country automation; persistence and IPC stay off the main thread. */
     fun updateSelectedGuid(guid: String) { chooseMostRoute(manualGuid = guid) }
 
+    /** Browsing the other route type never silently changes the active VPN. */
+    private fun showMostDirectRoutes(enabled: Boolean) {
+        if (uiState.value.routeBusy) return
+        val groupId = uiState.value.selectedGroupId
+        mostRouteJob?.cancel()
+        val change = ++mostRouteChange
+        _uiState.update { it.copy(routeBusy = true) }
+        mostRouteJob = viewModelScope.launch(ioDispatcher) {
+            try {
+                val counts = com.v2ray.ang.core.MostRoutePolicy.countryCounts(dataSource.getMostRouteCandidates(groupId), enabled)
+                val countries = com.v2ray.ang.core.MostRoutePolicy.countries.mapNotNull { code -> counts[code]?.let { MostCountryUiModel(code, it) } }
+                ensureActive()
+                dataSource.setMostDirectRoutes(enabled)
+                _uiState.update { it.copy(directRoutes = enabled,
+                    routeCountries = if (it.selectedGroupId == groupId) countries else emptyList()) }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "MOST route filter failed: group=$groupId", error)
+                toastError(R.string.most_route_start_failed)
+            } finally {
+                if (mostRouteChange == change) _uiState.update { it.copy(routeBusy = false) }
+            }
+        }
+    }
+
     private fun chooseMostRoute(country: String? = null, manualGuid: String? = null) {
         mostRouteJob?.cancel()
         val change = ++mostRouteChange
         val groupId = uiState.value.selectedGroupId
+        val direct = uiState.value.directRoutes
         _uiState.update { it.copy(routeBusy = true, connectionFailure = null) }
         mostRouteJob = viewModelScope.launch(ioDispatcher) {
             try {
                 val request = com.v2ray.ang.core.MostRouteSelection(enabled = country != null,
-                    country = country.orEmpty(), groupId = groupId, requestId = java.util.UUID.randomUUID().toString())
+                    country = country.orEmpty(), groupId = groupId, requestId = java.util.UUID.randomUUID().toString(), directOnly = direct)
                 val target = if (manualGuid != null) {
                     if (dataSource.decodeServerConfig(manualGuid) == null) null else manualGuid
                 } else com.v2ray.ang.core.MostRoutePolicy.choose(request,

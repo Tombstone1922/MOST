@@ -83,6 +83,13 @@ class CheckUpdateActivity : BaseComponentActivity() {
                     Text(stringResource(R.string.most_ota_auto), Modifier.weight(1f))
                     Switch(checked = state.auto, onCheckedChange = viewModel::setAuto)
                 }
+                Text(stringResource(R.string.most_ota_background_hint), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = {
+                    val intent = if (Build.VERSION.SDK_INT >= 26)
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                    startActivity(intent)
+                }) { Text(stringResource(R.string.most_ota_notification_settings)) }
                 OutlinedTextField(value = repo, onValueChange = { repo = it }, enabled = !busy, singleLine = true,
                     label = { Text(stringResource(R.string.most_ota_repo)) }, modifier = Modifier.fillMaxWidth())
                 TextButton(onClick = { viewModel.saveRepository(repo) }, enabled = !busy) { Text(stringResource(R.string.most_ota_save_repo)) }

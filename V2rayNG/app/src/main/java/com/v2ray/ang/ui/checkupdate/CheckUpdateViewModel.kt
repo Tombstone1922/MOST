@@ -38,7 +38,20 @@ class CheckUpdateViewModel(application: Application) : BaseViewModel(application
             } catch (e: Exception) { _state.update { it.copy(error = (e as? MostUpdateException)?.messageRes ?: R.string.most_ota_server_error) } }
         }
     }
-    fun setAuto(value: Boolean) { viewModelScope.launch(Dispatchers.IO) { UpdateCheckerManager.setAutoCheck(value); _state.update { it.copy(auto = value) } } }
+    private var autoJob: Job? = null
+    fun setAuto(value: Boolean) {
+        if (autoJob?.isActive == true) return
+        autoJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                UpdateCheckerManager.setAutoCheck(value)
+                _state.update { it.copy(auto = value, error = null) }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (error: Exception) {
+                com.v2ray.ang.util.LogUtil.e(com.v2ray.ang.AppConfig.TAG, "MOST update schedule failed: component=settings", error)
+                _state.update { it.copy(auto = UpdateCheckerManager.autoCheck(), error = R.string.most_ota_server_error) }
+            }
+        }
+    }
     fun download() {
         val result = _state.value.result?.takeIf { it.hasUpdate } ?: return
         if (job?.isActive == true) return

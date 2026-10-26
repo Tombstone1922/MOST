@@ -41,6 +41,8 @@ class MainRepository(
 ) : MainDataSource {
 
     override fun getMostRouteSelection() = SettingsManager.getMostRouteSelection()
+    override fun getMostDirectRoutes() = SettingsManager.getMostDirectRoutes()
+    override fun setMostDirectRoutes(value: Boolean) = SettingsManager.setMostDirectRoutes(value)
     override fun getMostRouteCandidates(groupId: String) = SettingsManager.getMostRouteCandidates(groupId)
     override fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection) = SettingsManager.getMostLastRoute(selection)
     override fun setMostRouteSelection(selection: com.v2ray.ang.core.MostRouteSelection) {

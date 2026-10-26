@@ -7,6 +7,7 @@ data class MostRouteSelection(
     val groupId: String = "",
     val preferredGuid: String = "",
     val requestId: String = "",
+    val directOnly: Boolean = false,
 )
 
 data class MostRouteCandidate(
@@ -37,7 +38,10 @@ object MostRoutePolicy {
     }
 
     fun eligible(selection: MostRouteSelection, candidates: List<MostRouteCandidate>): List<MostRouteCandidate> =
-        if (!selection.enabled || selection.country !in countries) emptyList() else candidates.filter { it.country == selection.country && (selection.groupId.isBlank() || it.groupId == selection.groupId) }
+        if (!selection.enabled || selection.country !in countries) emptyList() else candidates.filter {
+            it.country == selection.country && it.bridge != selection.directOnly &&
+                (selection.groupId.isBlank() || it.groupId == selection.groupId)
+        }
             .distinctBy { it.guid }
             .sortedWith(compareBy<MostRouteCandidate> { it.bridge }.thenBy {
                 when (it.network.lowercase(java.util.Locale.ROOT)) { "tcp", "raw", "" -> 0; "xhttp", "splithttp" -> 1; "grpc" -> 2; else -> 3 }
@@ -47,6 +51,9 @@ object MostRoutePolicy {
         val eligible = eligible(selection, candidates).filterNot { it.guid in tried }
         return eligible.firstOrNull { it.guid == preferred }?.guid ?: eligible.firstOrNull()?.guid
     }
+
+    fun countryCounts(candidates: List<MostRouteCandidate>, directOnly: Boolean): Map<String, Int> =
+        candidates.filter { it.bridge != directOnly }.distinctBy { it.guid }.groupingBy { it.country }.eachCount()
 
     fun requestedGuid(selection: MostRouteSelection, appliedRequest: String, current: String): String =
         if (selection.requestId != appliedRequest && selection.preferredGuid.isNotBlank()) selection.preferredGuid else current

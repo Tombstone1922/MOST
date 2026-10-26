@@ -53,9 +53,9 @@ jobs:
           packages: 'platforms;android-37.0 build-tools;37.0.0 platform-tools'
       - name: Prepare pinned native inputs
         run: bash ci/prepare_android.sh
-      - name: Subscription naming regression and universal APK
+      - name: Focused regression tests and universal APK
         working-directory: V2rayNG
-        run: ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest --tests com.v2ray.ang.core.MostRoutePolicyTest :app:assemblePlaystoreDebug
+        run: ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest --tests com.v2ray.ang.core.MostRoutePolicyTest --tests com.v2ray.ang.handler.MostUpdateNoticeTest :app:assemblePlaystoreDebug
       - name: Sign with the permanent MOST certificate
         id: bundle
         env:

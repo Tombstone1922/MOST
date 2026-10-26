@@ -28,4 +28,7 @@
     <string name="most_route_server_unavailable_title">Подключение недоступно</string>
     <string name="most_route_none_title">Нет рабочего подключения</string>
     <string name="most_route_wrong_country_title">Другая страна выхода</string>
+    <string name="most_route_direct">Прямые подключения</string>
+    <string name="most_route_bridge">Мостовые подключения</string>
+    <string name="most_route_direct_hint">С галочкой — только прямые, без галочки — только мосты. Затем выберите страну.</string>
 </resources>

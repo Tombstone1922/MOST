@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class MostRoutePolicyTest {
-    private val nl = MostRouteSelection(true, "nl", "family")
+    private val nl = MostRouteSelection(true, "nl", "family", directOnly = true)
     private val candidates = listOf(
         MostRouteCandidate("bridge", "nl", "family", "tcp", true),
         MostRouteCandidate("grpc", "nl", "family", "grpc", false),
@@ -26,7 +26,8 @@ class MostRoutePolicyTest {
 
     @Test
     fun `automatic candidates stay inside the requested country and subscription`() {
-        assertEquals(listOf("tcp", "xhttp", "grpc", "bridge"), MostRoutePolicy.eligible(nl, candidates).map { it.guid })
+        assertEquals(listOf("tcp", "xhttp", "grpc"), MostRoutePolicy.eligible(nl, candidates).map { it.guid })
+        assertEquals(listOf("bridge"), MostRoutePolicy.eligible(nl.copy(directOnly = false), candidates).map { it.guid })
         assertEquals(emptyList<MostRouteCandidate>(), MostRoutePolicy.eligible(nl.copy(enabled = false), candidates))
         assertEquals(emptyList<MostRouteCandidate>(), MostRoutePolicy.eligible(nl.copy(country = ""), candidates))
         assertEquals(emptyList<MostRouteCandidate>(), MostRoutePolicy.eligible(nl.copy(groupId = "missing"), candidates))
@@ -35,15 +36,17 @@ class MostRoutePolicyTest {
     @Test
     fun `failover exhausts same-country profiles without selecting another owner or country`() {
         val tried = linkedSetOf<String>()
-        repeat(4) { tried += requireNotNull(MostRoutePolicy.choose(nl, candidates, tried)) }
-        assertEquals(setOf("tcp", "xhttp", "grpc", "bridge"), tried)
+        repeat(3) { tried += requireNotNull(MostRoutePolicy.choose(nl, candidates, tried)) }
+        assertEquals(setOf("tcp", "xhttp", "grpc"), tried)
         assertNull(MostRoutePolicy.choose(nl, candidates, tried))
         assertNull(MostRoutePolicy.choose(nl.copy(country = "fi"), candidates))
     }
 
     @Test
     fun `last working profile is preferred only while eligible and not already failed`() {
-        assertEquals("bridge", MostRoutePolicy.choose(nl, candidates, preferred = "bridge"))
+        assertEquals("grpc", MostRoutePolicy.choose(nl, candidates, preferred = "grpc"))
+        assertEquals("tcp", MostRoutePolicy.choose(nl, candidates, preferred = "bridge"))
+        assertEquals("bridge", MostRoutePolicy.choose(nl.copy(directOnly = false), candidates, preferred = "tcp"))
         assertEquals("tcp", MostRoutePolicy.choose(nl, candidates, setOf("bridge"), "bridge"))
         assertEquals("tcp", MostRoutePolicy.choose(nl, candidates, preferred = "foreign"))
         assertEquals("tcp", MostRoutePolicy.choose(nl, candidates, preferred = "deleted-profile"))
@@ -70,5 +73,23 @@ class MostRoutePolicyTest {
         assertEquals(MostRouteSelection(), Gson().fromJson("{}", MostRouteSelection::class.java))
         val request = nl.copy(preferredGuid = "tcp", requestId = "request-id")
         assertEquals(request, Gson().fromJson(Gson().toJson(request), MostRouteSelection::class.java))
+        val legacy = Gson().fromJson("""{"enabled":true,"country":"nl","groupId":"family","preferredGuid":"bridge","requestId":"old"}""", MostRouteSelection::class.java)
+        assertFalse(legacy.directOnly)
+        assertEquals("old", legacy.requestId)
+        assertEquals("bridge", MostRoutePolicy.choose(legacy, candidates, preferred = legacy.preferredGuid))
+    }
+
+    @Test
+    fun `country cards count only the requested connection type`() {
+        assertEquals(mapOf("nl" to 1), MostRoutePolicy.countryCounts(candidates, directOnly = false))
+        assertEquals(mapOf("nl" to 4, "de" to 1), MostRoutePolicy.countryCounts(candidates, directOnly = true))
+        assertEquals(emptyMap<String, Int>(), MostRoutePolicy.countryCounts(emptyList(), directOnly = false))
+    }
+
+    @Test
+    fun `bridge recovery cannot fall through to a direct connection`() {
+        val bridge = nl.copy(directOnly = false)
+        assertNull(MostRoutePolicy.choose(bridge, candidates, setOf("bridge")))
+        assertEquals("bridge", MostRoutePolicy.choose(bridge, candidates, preferred = "tcp"))
     }
 }

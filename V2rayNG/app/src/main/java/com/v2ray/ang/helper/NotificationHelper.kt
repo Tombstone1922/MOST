@@ -4,13 +4,20 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.app.PendingIntent
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.v2ray.ang.R
 import com.v2ray.ang.enums.NotificationChannelType
 import com.v2ray.ang.handler.AppLocaleManager
+import com.v2ray.ang.ui.checkupdate.CheckUpdateActivity
 
 /**
  * Unified notification helper for different notification channels.
@@ -20,6 +27,39 @@ import com.v2ray.ang.handler.AppLocaleManager
  * Safe for high-frequency updates (100+ times/second).
  */
 object NotificationHelper {
+
+    private const val MOST_UPDATE_CHANNEL = "most-app-updates"
+    private const val MOST_UPDATE_NOTIFICATION = 4203
+
+    /** Ordinary release notice; never starts the VPN, a service or the Android installer. */
+    fun notifyMostUpdate(context: Context, version: String): Boolean {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context,
+                Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return false
+        ensureNotificationChannel(context, MOST_UPDATE_CHANNEL, R.string.most_ota_channel, NotificationManager.IMPORTANCE_DEFAULT)
+        if (Build.VERSION.SDK_INT >= 26 && getNotificationManager(context)
+                .getNotificationChannel(MOST_UPDATE_CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE) return false
+        val intent = Intent(context, CheckUpdateActivity::class.java)
+        val pending = PendingIntent.getActivity(context, MOST_UPDATE_NOTIFICATION, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val localized = AppLocaleManager.localizedContext(context)
+        val notice = NotificationCompat.Builder(context, MOST_UPDATE_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_name)
+            .setContentTitle(localized.getString(R.string.most_ota_notice_title, version))
+            .setContentText(localized.getString(R.string.most_ota_notice_body))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .build()
+        manager.notify(MOST_UPDATE_NOTIFICATION, notice)
+        return true
+    }
+
+    fun cancelMostUpdate(context: Context) {
+        NotificationManagerCompat.from(context).cancel(MOST_UPDATE_NOTIFICATION)
+    }
 
     // Cached instances for performance
     private var cachedNotificationManager: NotificationManager? = null

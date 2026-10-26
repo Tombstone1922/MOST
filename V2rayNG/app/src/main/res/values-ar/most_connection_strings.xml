@@ -28,7 +28,7 @@
     <string name="most_ota_install">Install update</string>
     <string name="most_ota_install_hint">Android asks you to confirm installation. Allow MOST to install apps for your first update.</string>
     <string name="most_ota_check">Check for updates</string>
-    <string name="most_ota_auto">Check for updates when MOST opens</string>
+    <string name="most_ota_auto">Check in background and notify</string>
     <string name="most_ota_repo">Update source: owner/repository</string>
     <string name="most_ota_save_repo">Save update source</string>
     <string name="most_ota_bad_repo">Enter a repository in owner/name format.</string>
@@ -39,4 +39,9 @@
     <string name="most_ota_bad_signature">The update is not signed by MOST. Installation was cancelled.</string>
     <string name="most_ota_install_error">Could not open the installer. Check permission to install apps from MOST.</string>
     <string name="most_ota_banner">A MOST update is available</string>
+    <string name="most_ota_channel">MOST updates</string>
+    <string name="most_ota_notice_title">MOST %1$s is available</string>
+    <string name="most_ota_notice_body">Tap to see what changed and update MOST.</string>
+    <string name="most_ota_background_hint">Checks about every 6 hours when online. Android may delay them. Allow notifications to receive release alerts.</string>
+    <string name="most_ota_notification_settings">Notification permissions</string>
 </resources>
