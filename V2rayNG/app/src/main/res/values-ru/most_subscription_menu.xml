@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_subscription_fallback">Подписка</string>
+    <string name="most_local_profiles">Локальные профили</string>
+    <string name="most_local_profiles_hint">Ссылки, добавленные вручную. Хранятся отдельно от подписок.</string>
+    <string name="most_subscription_source">Источник: %1$s</string>
+    <string name="most_subscription_servers">Серверов: %1$d</string>
+    <string name="most_subscription_rename">Переименовать подписку</string>
+    <string name="most_subscription_name">Название подписки</string>
+    <string name="most_subscription_name_hint">Например: Основная, Запасная, Семейная.</string>
+    <string name="most_subscription_name_rules">Введи название от 1 до 80 символов в одну строку.</string>
+    <string name="most_subscription_update">Обновить</string>
+    <string name="most_subscription_disabled">Подписка выключена</string>
+    <string name="most_subscription_updated">Обновлено: %1$s</string>
+    <string name="most_subscriptions_empty">Добавь ссылку подписки — здесь появятся её серверы.</string>
+</resources>

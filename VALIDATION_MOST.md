@@ -11,3 +11,11 @@ Not run:
 
 Only a successful assembly and signing check are claimed. No runtime or published-OTA validation is claimed.
 Native dependencies and dependency versions were preserved. No real subscription was fetched during development.
+
+
+## 0.4.1 — подписки и OTA CI
+
+- Локально: Python CI-скрипты компилируются; shell-синтаксис и новые XML-ресурсы проверены.
+- В GitHub Actions: одна сборка APK и тестовый класс `MostPresentationTest`. Результат определяется конкретным запуском Actions.
+- Not run: локальная Android-сборка (выполняется в CI), эмулятор/устройство, TalkBack/IME/восстановление экрана и реальная установка OTA. По просьбе пользователя повторные широкие прогоны не запускались.
+- До настройки Secrets новые APK имеют отладочную подпись и не публикуются как OTA. Первоначальный 0.4.0 уже подписан постоянным ключом.

@@ -374,7 +374,9 @@ class MainViewModel(
             MainAction.RemoveDuplicateServers -> removeDuplicateServerAsync()
             MainAction.RemoveInvalidServers -> removeInvalidServerAsync()
             MainAction.SortByTestResults -> sortByTestResultsAsync()
-            MainAction.UpdateSubscriptions -> importConfigViaSub()
+            MainAction.UpdateSubscriptions -> importConfigViaSub("")
+            is MainAction.UpdateSubscription -> importConfigViaSub(action.guid)
+            is MainAction.RenameSubscription -> renameMostSubscription(action.guid, action.name)
             MainAction.ExportAll -> exportAllAsync()
             is MainAction.SelectGroup -> subscriptionIdChanged(action.groupId)
             is MainAction.SelectServer -> updateSelectedGuid(action.guid)
@@ -507,6 +509,34 @@ class MainViewModel(
         }
     }
 
+    private var renameSubscriptionJob: Job? = null
+
+    private fun renameMostSubscription(guid: String, value: String) {
+        renameSubscriptionJob?.cancel()
+        renameSubscriptionJob = viewModelScope.launch(ioDispatcher) {
+            try {
+                val name = value.trim()
+                if (!MostPresentation.validSubscriptionName(name)) {
+                    toastError(R.string.most_subscription_name_rules)
+                    return@launch
+                }
+                val items = dataSource.getSubscriptions()
+                if (items.none { it.guid == guid && it.subscription.url.isNotBlank() }) return@launch
+                if (items.any { it.guid != guid && it.subscription.remarks.trim().equals(name, ignoreCase = true) }) {
+                    toastError(R.string.msg_remark_is_duplicate)
+                    return@launch
+                }
+                if (dataSource.renameSubscription(guid, name)) setupGroupTab(forceRefresh = true).join()
+                else toastError(R.string.toast_failure)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "MOST subscription rename failed: $guid", error)
+                toastError(R.string.toast_failure)
+            }
+        }
+    }
+
     fun getSubscriptions(): List<SubscriptionCache> = dataSource.getSubscriptions()
 
     private fun resolveSelectedGroup(groups: List<GroupMapItem>, current: String = uiState.value.selectedGroupId): String {
@@ -543,8 +573,19 @@ class MainViewModel(
                 if (forceRefresh) {
                     cacheMutex.withLock { groupDataCache.clear() }
                 }
-                val groups = dataSource.getSubscriptions().map {
-                    GroupMapItem(id = it.guid, remarks = it.subscription.remarks)
+                val subscriptions = dataSource.getSubscriptions()
+                val titles = MostPresentation.subscriptionTitles(
+                    subscriptions.filter { it.guid.isNotEmpty() }.map { Triple(it.guid, it.subscription.remarks, it.subscription.url) },
+                    dataSource.getString(R.string.most_subscription_fallback),
+                    dataSource.getString(R.string.most_local_profiles),
+                )
+                val groups = subscriptions.map {
+                    GroupMapItem(id = it.guid, remarks = titles[it.guid] ?: it.subscription.remarks)
+                }
+                val subscriptionRows = subscriptions.filter { it.guid.isNotEmpty() }.map {
+                    MostSubscriptionUiModel(it.guid, titles.getValue(it.guid),
+                        MostPresentation.subscriptionHost(it.subscription.url),
+                        dataSource.getServerGuidList(it.guid).size, it.subscription.enabled, it.subscription.lastUpdated)
                 }
                 val selectedGroup = resolveSelectedGroup(groups,
                     if (forceRefresh) dataSource.getSelectedSubscriptionId() else uiState.value.selectedGroupId)
@@ -558,6 +599,7 @@ class MainViewModel(
                     _uiState.update {
                         it.copy(
                             groups = groups,
+                            subscriptions = subscriptionRows,
                             selectedGroupId = selectedGroup,
                             selectedGuid = dataSource.getSelectServer(),
                             favoriteGuids = favorites,
@@ -722,8 +764,7 @@ class MainViewModel(
         }
     }
 
-    private fun importConfigViaSub() {
-        val subId = uiState.value.selectedGroupId
+    private fun importConfigViaSub(subId: String = uiState.value.selectedGroupId) {
         launchLoading {
             withContext(ioDispatcher) {
                 try {

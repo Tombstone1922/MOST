@@ -40,6 +40,8 @@ internal fun MostScreen(
     var advanced by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var favoritesOnly by rememberSaveable { mutableStateOf(false) }
+    var renameGuid by rememberSaveable { mutableStateOf<String?>(null) }
+    var renameDraft by rememberSaveable { mutableStateOf("") }
     if (advanced) {
         MainScreen(mainViewModel, onAction, onNavigate)
         BackHandler { advanced = false }
@@ -50,7 +52,7 @@ internal fun MostScreen(
     val group by mainViewModel.serverGroupState(state.selectedGroupId).collectAsStateWithLifecycle()
     val loading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val rows = if (favoritesOnly) group.rows.filter { it.guid in state.favoriteGuids } else group.rows
-    val titles = listOf(R.string.most_home, R.string.most_servers, R.string.most_links, R.string.most_settings)
+    val titles = listOf(R.string.most_home, R.string.most_servers, R.string.most_subscriptions, R.string.most_settings)
     val icons = listOf(R.drawable.ic_most_power, R.drawable.ic_most_servers, R.drawable.ic_subscriptions_24dp, R.drawable.ic_settings_24dp)
     Scaffold(
         bottomBar = {
@@ -214,11 +216,38 @@ internal fun MostScreen(
                     item { Text(stringResource(R.string.most_subscription_hint), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     item { Button(onClick = { onAction(MainAction.OpenImport()) }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_import_title)) } }
                     item { OutlinedButton(onClick = { onAction(MainAction.UpdateSubscriptions) }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_refresh)) } }
-                    items(state.groups.filter { it.id.isNotEmpty() }, key = { it.id }) { item ->
-                        Card(onClick = { onAction(MainAction.SelectGroup(item.id)); tab = 1 }) {
-                            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(item.remarks, style = MaterialTheme.typography.titleMedium)
-                                Text(stringResource(R.string.most_open_servers), color = MaterialTheme.colorScheme.primary)
+                    if (state.subscriptions.isEmpty()) item {
+                        Text(stringResource(R.string.most_subscriptions_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    items(state.subscriptions, key = { it.guid }) { item ->
+                        Card(shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(if (item.source.isBlank()) R.string.most_local_profiles_hint else R.string.most_subscription_source,
+                                            item.source), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    if (item.source.isNotBlank()) IconButton(onClick = { renameGuid = item.guid; renameDraft = item.title }) {
+                                        Icon(painterResource(R.drawable.ic_edit_24dp), stringResource(R.string.most_subscription_rename))
+                                    }
+                                }
+                                Text(stringResource(R.string.most_subscription_servers, item.serverCount),
+                                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                if (!item.enabled) Text(stringResource(R.string.most_subscription_disabled), color = MaterialTheme.colorScheme.error)
+                                if (item.lastUpdated > 0 && item.source.isNotBlank()) Text(
+                                    stringResource(R.string.most_subscription_updated,
+                                        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(item.lastUpdated))),
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilledTonalButton(onClick = { onAction(MainAction.SelectGroup(item.guid)); tab = 1 }, modifier = Modifier.weight(1f)) {
+                                        Text(stringResource(R.string.most_open_servers))
+                                    }
+                                    if (item.source.isNotBlank()) OutlinedButton(onClick = { onAction(MainAction.UpdateSubscription(item.guid)) }, enabled = !loading && item.enabled) {
+                                        Text(stringResource(R.string.most_subscription_update))
+                                    }
+                                }
                             }
                         }
                     }
@@ -240,6 +269,22 @@ internal fun MostScreen(
             }
         }
     }
+    if (renameGuid != null) AlertDialog(
+        onDismissRequest = { renameGuid = null },
+        title = { Text(stringResource(R.string.most_subscription_rename)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding()
+                .consumeWindowInsets(WindowInsets.navigationBars).imePadding()) {
+                OutlinedTextField(value = renameDraft, onValueChange = { renameDraft = it },
+                    label = { Text(stringResource(R.string.most_subscription_name)) }, singleLine = true,
+                    supportingText = { Text(stringResource(R.string.most_subscription_name_hint)) })
+            }
+        },
+        confirmButton = { TextButton(enabled = MostPresentation.validSubscriptionName(renameDraft), onClick = {
+            renameGuid?.let { onAction(MainAction.RenameSubscription(it, renameDraft)) }; renameGuid = null
+        }) { Text(stringResource(R.string.acc_save)) } },
+        dismissButton = { TextButton(onClick = { renameGuid = null }) { Text(stringResource(R.string.most_cancel)) } },
+    )
     if (state.importOpen) MostImportDialog(state, loading, onAction) {
         if (state.importResult != null) tab = 1
         onAction(MainAction.DismissImport)

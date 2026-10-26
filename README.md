@@ -1,6 +1,6 @@
 # MOST — Android VPN client
 
-Версия **0.4.0**, приложение `net.h1cloud.most`. Основано на [v2rayNG](https://github.com/2dust/v2rayNG), лицензия GPL-3.0.
+Версия **0.4.1**, приложение `net.h1cloud.most`. Основано на [v2rayNG](https://github.com/2dust/v2rayNG), лицензия GPL-3.0.
 
 - VLESS, Reality и подписки с HWID.
 - IP и страна фактического выхода через VPN.
@@ -27,3 +27,28 @@ JDK 21 и Android SDK, указанные в `.github/workflows/build.yml`. Пр
 OTA использует `Tombstone1922/MOST`. Для работы обновлений требуется релиз с APK и `most-update.json`; одна загрузка исходников не публикует релиз.
 
 Сборка 0.4.0 ранее собрана и подпись проверена. Проверки на устройстве не проводились. При переносе в GitHub код приложения не менялся и повторная сборка не запускалась.
+
+## Автоматические OTA-релизы
+
+GitHub Actions запускается при изменении Android-проекта в `main` или вручную: **Actions → MOST Android and OTA → Run workflow**. Выполняются сборка APK и один тестовый класс для названий подписок. Эмулятор и широкая тестовая серия не запускаются.
+
+Первый запуск публикует уже подписанный APK 0.4.0 и его исходники из коммита `2b587ebdf3dbb396a175125e8cab8fb998dbf272`. Бинарные части в `release-inputs/0.4.0` служат только для этой однократной публикации; перед выпуском проверяется SHA-256 целого APK. Пользователи скачивают один обычный APK из Releases.
+
+### Однократная настройка постоянной подписи
+
+Для новых APK нужны **Actions Secrets** `MOST_SIGNING_KEY_BASE64` и `MOST_SIGNING_PASSWORD`. Это тот же постоянный ключ MOST; новый ключ создавать нельзя, иначе Android не примет обновление поверх установленного приложения.
+
+На Windows установить GitHub CLI (`winget install --id GitHub.cli --exact`), скачать исходники проекта и исходный приватный архив `MOST-Android-Signing-Key.zip`. Из папки проекта выполнить:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ci\Setup-OTA.ps1 -SigningKeyZip "$env:USERPROFILE\Downloads\MOST-Android-Signing-Key.zip"
+```
+
+Скрипт предложит вход в GitHub, зашифрует ключ и пароль через `gh secret set`, сохранит их в Secrets и запустит выпуск. Содержимое ключа и пароль в консоль и Git не выводятся. Без Secrets CI сохранит только отладочную сборку в Artifacts; она не публикуется в OTA.
+
+### Следующие версии
+
+Увеличить `versionName` и `versionCode` в `V2rayNG/app/build.gradle.kts`, добавить `ci/release-notes-X.Y.Z.md`, отправить изменение в `main`. CI подпишет универсальный APK, сверит постоянный сертификат, сформирует `most-update.json` по фактическому APK и опубликует полный релиз. Готовые публичные релизы не заменяются; код версии должен расти. Исходники каждого релиза соответствуют точному коммиту сборки.
+
+Стандартный адрес проверки обновлений:
+`https://github.com/Tombstone1922/MOST/releases/latest/download/most-update.json`

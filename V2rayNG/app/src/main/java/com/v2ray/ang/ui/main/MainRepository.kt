@@ -80,7 +80,7 @@ class MainRepository(
         val existing = MmkvManager.decodeSubscriptions().firstOrNull { it.subscription.url == url }
         val id = existing?.guid ?: Utils.getUuid()
         val item = existing?.subscription?.copy() ?: SubscriptionItem(
-            remarks = getString(R.string.most_my_subscription), autoUpdate = true
+            remarks = MostPresentation.subscriptionHost(url).ifBlank { getString(R.string.most_subscription_fallback) }, autoUpdate = true
         )
         item.url = url
         item.allowInsecureUrl = allowHttp
@@ -224,6 +224,21 @@ class MainRepository(
         }
         result += MmkvManager.decodeSubscriptions()
         return result
+    }
+
+    override fun renameSubscription(id: String, name: String): Boolean {
+        if (!MostPresentation.validSubscriptionName(name)) return false
+        val old = MmkvManager.decodeSubscription(id) ?: return false
+        val updated = old.copy(remarks = name.trim())
+        return try {
+            MmkvManager.encodeSubscription(id, updated)
+            check(MmkvManager.decodeSubscription(id) == updated)
+            true
+        } catch (error: Exception) {
+            MmkvManager.encodeSubscription(id, old)
+            LogUtil.e(AppConfig.TAG, "MOST subscription rename failed: $id", error)
+            false
+        }
     }
 
     override fun getSubscriptionItem(id: String): SubscriptionItem? =

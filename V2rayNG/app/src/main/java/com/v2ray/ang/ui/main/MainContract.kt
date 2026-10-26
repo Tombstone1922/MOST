@@ -13,6 +13,15 @@ sealed interface MainStatus {
     data class ConnectionTest(val result: ConnectionTestResult) : MainStatus
 }
 
+data class MostSubscriptionUiModel(
+    val guid: String,
+    val title: String,
+    val source: String,
+    val serverCount: Int,
+    val enabled: Boolean,
+    val lastUpdated: Long,
+)
+
 /**
  * Main UI state
  */
@@ -42,6 +51,7 @@ data class MainUiState(
     val appUpdateAvailable: Boolean = false,
     val importError: Int? = null,
     val importResult: com.v2ray.ang.dto.MostImportResult? = null,
+    val subscriptions: List<MostSubscriptionUiModel> = emptyList(),
 ) {
     val canImport: Boolean get() = importPreview.ready && !importAnalyzing && !importBusy &&
         importResult == null && (!importPreview.needsHttpConsent || importAllowHttp)
@@ -75,6 +85,8 @@ sealed interface MainAction {
     data object RemoveInvalidServers : MainAction
     data object SortByTestResults : MainAction
     data object UpdateSubscriptions : MainAction
+    data class UpdateSubscription(val guid: String) : MainAction
+    data class RenameSubscription(val guid: String, val name: String) : MainAction
     data object ExportAll : MainAction
 
     data object ImportQRcode : MainAction

@@ -35,6 +35,7 @@ interface MainDataSource : Closeable {
     fun getString(resId: Int, vararg formatArgs: Any): String
 
     fun getSubscriptions(): List<SubscriptionCache>
+    fun renameSubscription(id: String, name: String): Boolean = false
     fun getSubscriptionItem(id: String): SubscriptionItem?
 
     fun getServerGuidList(groupId: String): List<String>

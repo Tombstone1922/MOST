@@ -62,4 +62,35 @@ class MostPresentationTest {
         assertEquals("existing", MostPresentation.importedGroup("https://example.com/missing", groups, "existing"))
         assertEquals("existing", MostPresentation.importedGroup("https://example.com/old", emptyList(), "existing"))
     }
+    @Test
+    fun `generic subscription names become provider names and local profiles stay separate`() {
+        val titles = MostPresentation.subscriptionTitles(listOf(
+            Triple("local", "Моя подписка", ""),
+            Triple("one", "моя подписка", "https://one.example/private-token"),
+            Triple("two", "Моя подписка", "https://two.example/secret")), "Подписка", "Локальные профили")
+        assertEquals("Локальные профили", titles["local"])
+        assertEquals("one.example", titles["one"])
+        assertEquals("two.example", titles["two"])
+        assertFalse(titles.values.any { "private-token" in it || "secret" in it })
+    }
+
+    @Test
+    fun `case-only duplicates and existing numbered names get unique labels`() {
+        val titles = MostPresentation.subscriptionTitles(listOf(
+            Triple("a", "Home", "https://a.example/s"),
+            Triple("b", "home", "https://b.example/s"),
+            Triple("c", "home · 2", "https://c.example/s")), "Subscription", "Local profiles")
+        assertEquals(3, titles.values.map { it.lowercase() }.toSet().size)
+        assertEquals("Home", titles["a"])
+        assertEquals("home · 3", titles["b"])
+        assertEquals("home · 2", titles["c"])
+    }
+
+    @Test
+    fun `subscription names require a nonblank bounded single line`() {
+        assertTrue(MostPresentation.validSubscriptionName(" Family "))
+        assertFalse(MostPresentation.validSubscriptionName("   "))
+        assertFalse(MostPresentation.validSubscriptionName("a".repeat(81)))
+        assertFalse(MostPresentation.validSubscriptionName("a\nb"))
+    }
 }

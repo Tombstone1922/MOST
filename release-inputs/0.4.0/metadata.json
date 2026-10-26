@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "versionCode": 4000005,
+  "versionName": "0.4.0",
+  "packageName": "net.h1cloud.most",
+  "sha256": "38b56015b8ff49d5fe509c302bc5aced94ddea118747f115dff0105cc27f50cb",
+  "sizeBytes": 83896151,
+  "notes": "MOST 0.4.0: IP и страна выхода, автоматическое восстановление, запасной сервер, список приложений без VPN и поддержка OTA. APK подписан постоянным ключом MOST."
+}

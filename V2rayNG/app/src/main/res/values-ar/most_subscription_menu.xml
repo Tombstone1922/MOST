@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_subscription_fallback">Subscription</string>
+    <string name="most_local_profiles">Local profiles</string>
+    <string name="most_local_profiles_hint">Links added manually; separate from subscriptions.</string>
+    <string name="most_subscription_source">Provider: %1$s</string>
+    <string name="most_subscription_servers">Servers: %1$d</string>
+    <string name="most_subscription_rename">Rename subscription</string>
+    <string name="most_subscription_name">Subscription name</string>
+    <string name="most_subscription_name_hint">For example: Main, Backup, Family.</string>
+    <string name="most_subscription_name_rules">Enter a name with 1–80 characters on one line.</string>
+    <string name="most_subscription_update">Refresh</string>
+    <string name="most_subscription_disabled">Subscription disabled</string>
+    <string name="most_subscription_updated">Updated: %1$s</string>
+    <string name="most_subscriptions_empty">Add a subscription link to load its servers.</string>
+</resources>

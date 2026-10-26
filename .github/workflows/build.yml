@@ -1,44 +1,75 @@
-name: MOST Android debug
+name: MOST Android and OTA
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the signed version to OTA
+        type: boolean
+        default: true
   push:
-    branches: [main, most-v0.1, most-v0.2]
+    branches: [main]
+    paths: ['V2rayNG/**', 'ci/**', '.github/workflows/build.yml', 'compile-hevtun.sh', 'hev-socks5-tunnel/**', 'release-inputs/**']
+  pull_request:
+    branches: [main]
 permissions:
   contents: read
+concurrency:
+  group: most-android-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  build:
+  bootstrap:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.publish)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Publish the previously signed MOST 0.4.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ci/bootstrap_ota.py
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
+          cache-dependency-path: 'V2rayNG/**/*.gradle.kts'
       - uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: '14742923'
           packages: 'platforms;android-37.0 build-tools;37.0.0 platform-tools'
-      - name: Native libraries
-        shell: bash
-        run: |
-          sdkmanager 'ndk;30.0.16248370'
-          export NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
-          bash compile-hevtun.sh
-          mkdir -p V2rayNG/app/libs
-          cp -r libs/. V2rayNG/app/libs/
-          curl -fL --retry 3 https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.10.17/libv2ray.aar -o V2rayNG/app/libs/libv2ray.aar
-          echo 'fd6cb61fed873e465c3064327dffbcb22dc3fd78260d162ec9e868db2582495f  V2rayNG/app/libs/libv2ray.aar' | sha256sum -c -
-      - name: Focused tests
+      - name: Prepare pinned native inputs
+        run: bash ci/prepare_android.sh
+      - name: Subscription naming regression and universal APK
         working-directory: V2rayNG
-        run: |
-          chmod +x gradlew
-          ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.fmt.ImportTextParserTest --tests com.v2ray.ang.fmt.VlessImportRegressionTest --tests com.v2ray.ang.ClipboardImportTest --tests com.v2ray.ang.ui.main.MostImportViewModelTest --tests com.v2ray.ang.handler.ProfileBatchRollbackTest --tests com.v2ray.ang.ui.main.MostPresentationTest
-      - name: Unit tests and APK
-        working-directory: V2rayNG
-        run: ./gradlew :app:testPlaystoreDebugUnitTest :app:compilePlaystoreDebugKotlin :app:assemblePlaystoreDebug :app:lintPlaystoreDebug
+        run: ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest :app:assemblePlaystoreDebug
+      - name: Sign with the permanent MOST certificate
+        id: bundle
+        env:
+          MOST_SIGNING_KEY_BASE64: ${{ github.event_name != 'pull_request' && secrets.MOST_SIGNING_KEY_BASE64 || '' }}
+          MOST_SIGNING_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.MOST_SIGNING_PASSWORD || '' }}
+        run: python3 ci/android_bundle.py
       - uses: actions/upload-artifact@v7
         with:
-          name: MOST-Android
-          path: V2rayNG/app/build/outputs/apk/playstore/debug/*.apk
+          name: MOST-${{ steps.bundle.outputs.version }}-build
+          path: out/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish signed APK, exact source and OTA manifest
+        if: steps.bundle.outputs.signed == 'true' && github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.publish)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ci/publish_release.py --apk "out/MOST-${{ steps.bundle.outputs.version }}-Android.apk" --metadata out/metadata.json --source-ref "$GITHUB_SHA"
