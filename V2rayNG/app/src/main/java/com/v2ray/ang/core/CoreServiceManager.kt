@@ -91,7 +91,11 @@ object CoreServiceManager {
                             MmkvManager.setSelectServer(expected)
                             try {
                                 coreController.stopLoop()
-                                if (mostLifecycleEpoch == epoch && getService() === service) launchCore(service, currentVpnInterface, isReload = true)
+                                if (mostLifecycleEpoch == epoch && getService() === service) {
+                                    launchCore(service, currentVpnInterface, isReload = true)
+                                    if (mostLifecycleEpoch == epoch && getService() === service && isRunning())
+                                        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RUNNING, "")
+                                }
                             } catch (error: Exception) {
                                 LogUtil.e(AppConfig.TAG, "MOST route rollback failed: component=core-reload profile=$expected", error)
                                 if (mostLifecycleEpoch == epoch && getService() === service) {
@@ -359,6 +363,9 @@ object CoreServiceManager {
                 return false
             }
 
+            // A client may register during the native stop/start gap and receive StateNotRunning.
+            // Confirm the current daemon state after a successful reload, without a start-success toast.
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RUNNING, "")
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")
             true
         } catch (e: Exception) {
