@@ -13,6 +13,8 @@ sealed interface MainStatus {
     data class ConnectionTest(val result: ConnectionTestResult) : MainStatus
 }
 
+data class MostCountryUiModel(val country: String, val routes: Int)
+
 data class MostSubscriptionUiModel(
     val guid: String,
     val title: String,
@@ -52,6 +54,11 @@ data class MainUiState(
     val importError: Int? = null,
     val importResult: com.v2ray.ang.dto.MostImportResult? = null,
     val subscriptions: List<MostSubscriptionUiModel> = emptyList(),
+    val mostRoute: com.v2ray.ang.core.MostRouteSelection = com.v2ray.ang.core.MostRouteSelection(),
+    val routeCountries: List<MostCountryUiModel> = emptyList(),
+    val routeBusy: Boolean = false,
+    val connectionFailure: Int? = null,
+    val subscriptionFailure: com.v2ray.ang.dto.SubscriptionFailure? = null,
 ) {
     val canImport: Boolean get() = importPreview.ready && !importAnalyzing && !importBusy &&
         importResult == null && (!importPreview.needsHttpConsent || importAllowHttp)
@@ -61,6 +68,8 @@ data class MainUiState(
  * All possible user interaction intents
  */
 sealed interface MainAction {
+    data class ChooseCountry(val country: String) : MainAction
+    data object DismissSubscriptionFailure : MainAction
     data object CheckAppUpdates : MainAction
     data object RefreshConnectionHealth : MainAction
     data class SetAutoRecovery(val enabled: Boolean) : MainAction

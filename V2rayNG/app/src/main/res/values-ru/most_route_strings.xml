@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_route_pick_country">Куда подключиться?</string>
+    <string name="most_route_countries">По странам</string>
+    <string name="most_route_manual">Вручную</string>
+    <string name="most_route_all">Все подключения</string>
+    <string name="most_route_auto">Автоподбор подключения</string>
+    <string name="most_route_selected">Выбрано · Авто</string>
+    <string name="most_route_count">Подключений: %1$d</string>
+    <string name="most_route_attempt">Пробуем подключение %1$d из %2$d</string>
+    <string name="most_route_country_hint">Выбери страну. MOST переберёт её подключения и сохранит выбранную страну выхода.</string>
+    <string name="most_route_scope">Подключения из подписки, в которой выбрана страна.</string>
+    <string name="most_route_auto_hint">При сбое MOST попробует другой профиль этой страны. Рабочий вариант запоминается.</string>
+    <string name="most_route_manual_hint">Выбор конкретного профиля включает ручной режим и отключает автоподбор по стране.</string>
+    <string name="most_route_unknown">Здесь нет профилей с определённой страной. Открой все подключения или обнови подписку.</string>
+    <string name="most_route_none">Нет рабочего подключения для выбранной страны. Повтори попытку, обнови подписку или смени сеть.</string>
+    <string name="most_route_start_failed">Не удалось запустить этот профиль. Выбери другое подключение или обнови подписку.</string>
+    <string name="most_route_server_unavailable">Сеть доступна, но подключение через сервер не работает. Повтори попытку или выбери другой профиль.</string>
+    <string name="most_route_no_network">Нет подключения к сети. Включи Wi-Fi или мобильный интернет.</string>
+    <string name="most_route_no_internet">Интернет через VPN недоступен. Проверь сеть или выбери другое подключение.</string>
+    <string name="most_route_wrong_country">Выход определён в другой стране. Ищем подходящее подключение.</string>
+    <string name="most_route_subscription_attention">Подписка требует внимания</string>
+    <string name="most_route_understood">Понятно</string>
+    <string name="most_route_russia">Россия</string>
+    <string name="most_route_retry">Попробовать ещё раз</string>
+    <string name="most_route_no_network_title">Нет сети</string>
+    <string name="most_route_no_internet_title">Нет доступа к интернету</string>
+    <string name="most_route_server_unavailable_title">Подключение недоступно</string>
+    <string name="most_route_none_title">Нет рабочего подключения</string>
+    <string name="most_route_wrong_country_title">Другая страна выхода</string>
+</resources>

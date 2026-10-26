@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.Flow
 import java.io.Closeable
 
 interface MainDataSource : Closeable {
+    fun getMostRouteSelection(): com.v2ray.ang.core.MostRouteSelection = com.v2ray.ang.core.MostRouteSelection()
+    fun getMostRouteCandidates(groupId: String): List<com.v2ray.ang.core.MostRouteCandidate> = emptyList()
+    fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection): String = ""
+    fun setMostRouteSelection(selection: com.v2ray.ang.core.MostRouteSelection) { setSelectServer(selection.preferredGuid) }
     fun getAutoRecovery(): Boolean = true
     fun setAutoRecovery(value: Boolean) {}
     fun getBackupGuid(): String = ""

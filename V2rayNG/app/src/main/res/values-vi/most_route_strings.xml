@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_route_pick_country">Where do you want to connect?</string>
+    <string name="most_route_countries">Countries</string>
+    <string name="most_route_manual">Manual</string>
+    <string name="most_route_all">All connections</string>
+    <string name="most_route_auto">Automatic connection</string>
+    <string name="most_route_selected">Selected · Auto</string>
+    <string name="most_route_count">Connections: %1$d</string>
+    <string name="most_route_attempt">Trying connection %1$d of %2$d</string>
+    <string name="most_route_country_hint">Choose a country. MOST will try its available connections and keep the selected exit country.</string>
+    <string name="most_route_scope">Connections from the subscription where you chose this country.</string>
+    <string name="most_route_auto_hint">If a connection fails, MOST tries another profile for the same country. The last working profile is remembered.</string>
+    <string name="most_route_manual_hint">Selecting a specific profile switches to manual mode. Country automation is disabled.</string>
+    <string name="most_route_unknown">No country groups are available here. Open all connections or refresh the subscription.</string>
+    <string name="most_route_none">No working connection is available for the selected country. Retry, refresh the subscription or change network.</string>
+    <string name="most_route_start_failed">Could not start this profile. Select another connection or refresh the subscription.</string>
+    <string name="most_route_server_unavailable">The network is available, but access through this server failed. Retry or select another connection.</string>
+    <string name="most_route_no_network">No network connection. Enable Wi-Fi or mobile data.</string>
+    <string name="most_route_no_internet">Internet access through VPN is unavailable. Check the network or select another connection.</string>
+    <string name="most_route_wrong_country">The exit was detected in another country. MOST is looking for a matching connection.</string>
+    <string name="most_route_subscription_attention">Subscription needs attention</string>
+    <string name="most_route_understood">Dismiss</string>
+    <string name="most_route_russia">Russia</string>
+    <string name="most_route_retry">Try again</string>
+    <string name="most_route_no_network_title">No network</string>
+    <string name="most_route_no_internet_title">No internet access</string>
+    <string name="most_route_server_unavailable_title">Connection unavailable</string>
+    <string name="most_route_none_title">No working connection</string>
+    <string name="most_route_wrong_country_title">Unexpected exit country</string>
+</resources>

@@ -55,7 +55,7 @@ jobs:
         run: bash ci/prepare_android.sh
       - name: Subscription naming regression and universal APK
         working-directory: V2rayNG
-        run: ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest :app:assemblePlaystoreDebug
+        run: ./gradlew :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.MostPresentationTest --tests com.v2ray.ang.core.MostRoutePolicyTest :app:assemblePlaystoreDebug
       - name: Sign with the permanent MOST certificate
         id: bundle
         env:

@@ -103,6 +103,8 @@ class MainViewModel(
     private var mostImportPreviewJob: Job? = null
     private var mostImportJob: Job? = null
     private var mostUpdateJob: Job? = null
+    private var mostRouteJob: Job? = null
+    @Volatile private var mostRouteChange = 0L
 
     // ---------- Groups & cache ----------
     private val cacheMutex = Mutex()
@@ -182,8 +184,10 @@ class MainViewModel(
     private fun handleServiceEvent(event: MainServiceEvent) {
         when (event) {
             is MainServiceEvent.MostHealth -> {
-                if (uiState.value.isRunning) {
-                    _uiState.update { it.copy(health = event.value) }
+                if (uiState.value.isRunning && (uiState.value.mostRoute.requestId.isBlank() ||
+                    event.value.routeRequestId == uiState.value.mostRoute.requestId)) {
+                    _uiState.update { it.copy(health = event.value,
+                        connectionFailure = if (event.value.state == com.v2ray.ang.dto.MostLinkState.ONLINE) null else it.connectionFailure) }
                     if (event.value.guid.isNotBlank() && event.value.guid != uiState.value.selectedGuid) refreshSelectedGuid()
                 }
             }
@@ -195,12 +199,10 @@ class MainViewModel(
             }
 
             is MainServiceEvent.StateStartFailure -> {
-                if (!event.message.isNullOrBlank()) {
-                    toastError(event.message)
-                } else {
-                    toastError(R.string.toast_services_failure)
-                }
+                val message = if (event.message == "most-no-route") R.string.most_route_none else R.string.most_route_start_failed
+                toastError(message)
                 updateRunningState(false)
+                _uiState.update { it.copy(connectionFailure = message) }
             }
 
             MainServiceEvent.StateStopSuccess -> updateRunningState(false)
@@ -334,6 +336,8 @@ class MainViewModel(
     // ---------- Action handler ----------
     fun onAction(action: MainAction) {
         when (action) {
+            is MainAction.ChooseCountry -> chooseMostRoute(country = action.country)
+            MainAction.DismissSubscriptionFailure -> _uiState.update { it.copy(subscriptionFailure = null) }
             MainAction.CheckAppUpdates -> checkMostUpdates()
             MainAction.RefreshConnectionHealth -> dataSource.sendMsg2Service(AppConfig.MSG_MOST_HEALTH_REQUEST, "")
             is MainAction.SetAutoRecovery -> viewModelScope.launch(ioDispatcher) {
@@ -589,6 +593,11 @@ class MainViewModel(
                 }
                 val selectedGroup = resolveSelectedGroup(groups,
                     if (forceRefresh) dataSource.getSelectedSubscriptionId() else uiState.value.selectedGroupId)
+                val route = dataSource.getMostRouteSelection()
+                val counts = dataSource.getMostRouteCandidates(selectedGroup).groupingBy { it.country }.eachCount()
+                val countries = com.v2ray.ang.core.MostRoutePolicy.countries.mapNotNull { code ->
+                    counts[code]?.let { MostCountryUiModel(code, it) }
+                }
                 val validIds = groups.mapTo(HashSet()) { it.id }
                 groupUiFlows.keys.removeAll { it !in validIds }
                 groupServerFlows.keys.removeAll { it !in validIds }
@@ -600,6 +609,8 @@ class MainViewModel(
                         it.copy(
                             groups = groups,
                             subscriptions = subscriptionRows,
+                            mostRoute = route,
+                            routeCountries = countries,
                             selectedGroupId = selectedGroup,
                             selectedGuid = dataSource.getSelectServer(),
                             favoriteGuids = favorites,
@@ -694,12 +705,13 @@ class MainViewModel(
                     if (dataSource.getSelectServer() == null) result.firstGuid?.let(dataSource::setSelectServer)
                 }
                 setupGroupTab(forceRefresh = true).join()
-                _uiState.update { it.copy(importResult = result.copy(duplicates = result.duplicates + preview.duplicates)) }
+                _uiState.update { it.copy(importResult = result.copy(duplicates = result.duplicates + preview.duplicates), subscriptionFailure = null) }
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (error: Exception) {
                 LogUtil.e(AppConfig.TAG, "MOST link import failed: ${error.javaClass.simpleName}")
                 val message = (error as? SubscriptionRequestException)?.failure?.messageRes ?: R.string.most_import_retry
-                _uiState.update { it.copy(importError = message) }
+                _uiState.update { it.copy(importError = message,
+                    subscriptionFailure = (error as? SubscriptionRequestException)?.failure) }
             } finally {
                 _uiState.update { it.copy(importBusy = false) }
                 _isLoading.value = false
@@ -774,6 +786,7 @@ class MainViewModel(
                         val item = dataSource.getSubscriptionItem(subId) ?: return@withContext
                         dataSource.updateConfigViaSub(SubscriptionCache(subId, item))
                     }
+                    _uiState.update { it.copy(subscriptionFailure = result.failure) }
                     when {
                         result.successCount == 0 && result.failure != null ->
                             toastError(result.failure.messageRes)
@@ -948,13 +961,16 @@ class MainViewModel(
         if (_uiState.value.groups.none { it.id == id }) return
         mutableServerGroupState(id)
         if (uiState.value.selectedGroupId != id) {
-            dataSource.setSelectedSubscriptionId(id)
-            _uiState.update { it.copy(selectedGroupId = id) }
+            _uiState.update { it.copy(selectedGroupId = id, routeCountries = emptyList()) }
         }
         selectedGroupLoadJob?.cancel()
         selectedGroupLoadJob = viewModelScope.launch(ioDispatcher) {
             try {
+                dataSource.setSelectedSubscriptionId(id)
                 updateGroupUi(id, loadGroup(id))
+                val counts = dataSource.getMostRouteCandidates(id).groupingBy { it.country }.eachCount()
+                val countries = com.v2ray.ang.core.MostRoutePolicy.countries.mapNotNull { code -> counts[code]?.let { MostCountryUiModel(code, it) } }
+                _uiState.update { if (it.selectedGroupId == id) it.copy(routeCountries = countries) else it }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -1003,9 +1019,41 @@ class MainViewModel(
         }
     }
 
-    fun updateSelectedGuid(guid: String) {
-        dataSource.setSelectServer(guid)
-        _uiState.update { it.copy(selectedGuid = guid) }
+    /** Explicit profile selection disables country automation; persistence and IPC stay off the main thread. */
+    fun updateSelectedGuid(guid: String) { chooseMostRoute(manualGuid = guid) }
+
+    private fun chooseMostRoute(country: String? = null, manualGuid: String? = null) {
+        mostRouteJob?.cancel()
+        val change = ++mostRouteChange
+        val groupId = uiState.value.selectedGroupId
+        _uiState.update { it.copy(routeBusy = true, connectionFailure = null) }
+        mostRouteJob = viewModelScope.launch(ioDispatcher) {
+            try {
+                val request = com.v2ray.ang.core.MostRouteSelection(enabled = country != null,
+                    country = country.orEmpty(), groupId = groupId, requestId = java.util.UUID.randomUUID().toString())
+                val target = if (manualGuid != null) {
+                    if (dataSource.decodeServerConfig(manualGuid) == null) null else manualGuid
+                } else com.v2ray.ang.core.MostRoutePolicy.choose(request,
+                    dataSource.getMostRouteCandidates(groupId), preferred = dataSource.getMostLastRoute(request))
+                if (target == null) {
+                    _uiState.update { it.copy(connectionFailure = R.string.most_route_none) }
+                    toastError(R.string.most_route_none)
+                    return@launch
+                }
+                val selected = request.copy(preferredGuid = target)
+                dataSource.setMostRouteSelection(selected)
+                _uiState.update { it.copy(mostRoute = selected, selectedGuid = target, health = null) }
+                selectedProfileRefresh.update { it + 1 }
+                dataSource.sendMsg2Service(AppConfig.MSG_MOST_ROUTE_CHANGED, selected.requestId)
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "MOST route selection failed: group=$groupId", error)
+                _uiState.update { it.copy(connectionFailure = R.string.most_route_start_failed) }
+                toastError(R.string.most_route_start_failed)
+            } finally {
+                if (mostRouteChange == change) _uiState.update { it.copy(routeBusy = false) }
+            }
+        }
     }
 
     fun refreshSelectedGuid() {
@@ -1162,6 +1210,7 @@ class MainViewModel(
         _uiState.update { state ->
             state.copy(
                 isRunning = running,
+                connectionFailure = if (running) null else state.connectionFailure,
                 health = if (!running || !state.isRunning) null else state.health,
                 isTesting = testRequests.isTesting,
                 status = if (!clearTestingText && state.isRunning == running) state.status

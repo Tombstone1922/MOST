@@ -60,23 +60,52 @@ object CoreServiceManager {
     @Volatile private var mostLifecycleEpoch = 0L
     @Volatile private var mostActiveGuid = ""
     @Volatile private var mostRevision = 0L
+    @Volatile private var mostAppliedRequest = MmkvManager.decodeSettingsString("most_route_applied").orEmpty()
     @Volatile private var mostHealth = com.v2ray.ang.dto.MostConnectionHealth()
     private fun startMostWatchdog(service: Service) {
         mostWatchdog?.stop()
-        val watchdog = MostConnectionWatchdog(service, mostHealthScope, { isRunning() }, { isReloading }, { mostActiveGuid }, { mostRevision },
-            { target, expected, revision, allowed ->
+        val watchdog = MostConnectionWatchdog(service, mostHealthScope, { isRunning() }, { isReloading },
+            { mostActiveGuid }, { mostRevision }, { mostAppliedRequest },
+            { allowed ->
                 synchronized(this) {
-                    if (!allowed() || mostRevision != revision || mostActiveGuid != expected || MmkvManager.getSelectServer() != expected || !isRunning()) false
+                    val epoch = mostLifecycleEpoch
+                    val recovered = reloadCore(reportFailure = false, allowed = allowed)
+                    if (!recovered && allowed() && epoch == mostLifecycleEpoch && !isRunning()) {
+                        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, "most-core-failed")
+                        serviceControl?.get()?.stopService()
+                    }
+                    recovered
+                }
+            },
+            { target, expected, revision, selection, allowed ->
+                synchronized(this) {
+                    if (!allowed() || mostRevision != revision || mostActiveGuid != expected ||
+                        SettingsManager.getMostRouteSelection() != selection || !isRunning()) false
                     else {
-                        if (target != expected) MmkvManager.setSelectServer(target)
-                        val recovered = reloadCore { allowed() && MmkvManager.getSelectServer() == target }
-                        if (!recovered && allowed() && target != expected && MmkvManager.getSelectServer() == target) MmkvManager.setSelectServer(expected)
+                        val epoch = mostLifecycleEpoch
+                        MmkvManager.setSelectServer(target)
+                        val recovered = reloadCore(reportFailure = false, allowed = allowed)
+                        if (!recovered && allowed() && mostLifecycleEpoch == epoch && getService() === service) {
+                            // Roll back a rejected native configuration while the same service still owns the tunnel.
+                            // A newer user request is resolved again by launchCore and takes priority over this fallback.
+                            MmkvManager.setSelectServer(expected)
+                            try {
+                                coreController.stopLoop()
+                                if (allowed() && mostLifecycleEpoch == epoch) launchCore(service, currentVpnInterface, isReload = true)
+                            } catch (error: Exception) {
+                                LogUtil.e(AppConfig.TAG, "MOST route rollback failed: component=core-reload profile=$expected", error)
+                                if (allowed() && mostLifecycleEpoch == epoch) {
+                                    MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, "most-no-route")
+                                    serviceControl?.get()?.stopService()
+                                }
+                            }
+                        }
                         recovered
                     }
                 }
             }, { value ->
                 mostHealth = value
-                MessageHelper.sendMsg2UI(service, AppConfig.MSG_MOST_HEALTH, value)
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_MOST_HEALTH, mostHealth)
             })
         mostWatchdog = watchdog
         watchdog.start()
@@ -135,7 +164,8 @@ object CoreServiceManager {
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE,
+                if (message == "most-no-route") "most-no-route" else "most-core-failed")
             NotificationManager.cancelNotification()
             return false
         }
@@ -156,10 +186,17 @@ object CoreServiceManager {
 
     @Throws(Exception::class)
     private fun launchCore(service: Service, vpnInterface: ParcelFileDescriptor?, isReload: Boolean = false) {
-        val guid = MmkvManager.getSelectServer() ?: error("No server selected")
+        val selection = SettingsManager.getMostRouteSelection()
+        val selected = MostRoutePolicy.requestedGuid(selection, mostAppliedRequest, MmkvManager.getSelectServer().orEmpty())
+        val guid = if (selection.enabled) {
+            val candidates = SettingsManager.getMostRouteCandidates(selection.groupId)
+            com.v2ray.ang.core.MostRoutePolicy.choose(selection, candidates, preferred = selected)
+                ?: error("most-no-route")
+        } else selected.ifBlank { error("No server selected") }
         val config = MmkvManager.decodeServerConfig(guid) ?: error("Failed to decode server config")
+        MmkvManager.setSelectServer(guid)
 
-        LogUtil.i(AppConfig.TAG, "StartCore-Manager: Starting core loop for ${config.remarks}")
+        LogUtil.i(AppConfig.TAG, "StartCore-Manager: Starting core loop: profile=$guid")
         val result = CoreConfigManager.withMostProbe(CoreConfigManager.getV2rayConfig(service, guid))
         LogUtil.d(AppConfig.TAG, "Prepared core configuration: profile=$guid")
         if (!result.status) {
@@ -210,8 +247,11 @@ object CoreServiceManager {
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
         }
         mostActiveGuid = guid
+        mostAppliedRequest = selection.requestId
+        if (!MmkvManager.encodeSettings("most_route_applied", selection.requestId))
+            LogUtil.w(AppConfig.TAG, "MOST request acknowledgement cache failed: profile=$guid")
         mostRevision++
-        mostHealth = com.v2ray.ang.dto.MostConnectionHealth(guid)
+        mostHealth = com.v2ray.ang.dto.MostConnectionHealth(guid, routeRequestId = mostAppliedRequest)
         if (!isReload) startMostWatchdog(service)
         NotificationManager.startSpeedNotification()
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
@@ -291,7 +331,7 @@ object CoreServiceManager {
      * @return True if the core is running again.
      */
     @Synchronized
-    private fun reloadCore(allowed: () -> Boolean = { true }): Boolean {
+    private fun reloadCore(reportFailure: Boolean = true, allowed: () -> Boolean = { true }): Boolean {
         if (isReloading) return false
         val service = getService() ?: return false
         if (!isRunning()) return false
@@ -322,7 +362,7 @@ object CoreServiceManager {
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            if (reportFailure) MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, "most-core-failed")
             false
         } finally {
             isReloading = false
@@ -550,6 +590,19 @@ object CoreServiceManager {
                     }
                 }
 
+                AppConfig.MSG_MOST_ROUTE_CHANGED -> {
+                    val requestId = intent.getStringExtra("content").orEmpty()
+                    val epoch = mostLifecycleEpoch
+                    mostHealthScope.launch {
+                        synchronized(CoreServiceManager) {
+                            if (epoch == mostLifecycleEpoch && isRunning() &&
+                                SettingsManager.getMostRouteSelection().requestId == requestId) {
+                                // The watchdog applies pending requests using the same reload owner and epoch guard.
+                                mostWatchdog?.start()
+                            }
+                        }
+                    }
+                }
                 AppConfig.MSG_MOST_HEALTH_REQUEST -> { if (isRunning()) mostWatchdog?.start() }
                 AppConfig.MSG_MEASURE_DELAY -> {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK

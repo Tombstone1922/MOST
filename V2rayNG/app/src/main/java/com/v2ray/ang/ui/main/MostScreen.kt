@@ -40,6 +40,7 @@ internal fun MostScreen(
     var advanced by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var favoritesOnly by rememberSaveable { mutableStateOf(false) }
+    var showConnections by rememberSaveable { mutableStateOf(false) }
     var renameGuid by rememberSaveable { mutableStateOf<String?>(null) }
     var renameDraft by rememberSaveable { mutableStateOf("") }
     if (advanced) {
@@ -69,7 +70,7 @@ internal fun MostScreen(
         }
     ) { padding ->
         LazyVerticalGrid(
-            columns = GridCells.Fixed(if (tab == 1 && state.doubleColumnDisplay) 2 else 1),
+            columns = GridCells.Fixed(if (tab == 1 && (!showConnections || state.doubleColumnDisplay)) 2 else 1),
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
             contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -88,7 +89,7 @@ internal fun MostScreen(
                     })
                 }
             }
-            if (loading) item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (loading || state.routeBusy) item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             when (tab) {
                 0 -> {
                     if (state.appUpdateAvailable) item(span = { GridItemSpan(maxLineSpan) }) {
@@ -104,7 +105,7 @@ internal fun MostScreen(
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(if (state.isRunning) R.string.most_connected else R.string.most_ready),
+                                    Text(stringResource(if (state.isRunning) mostHealthLabel(state.health?.state) else R.string.most_ready),
                                         style = MaterialTheme.typography.titleLarge)
                                     Text(stringResource(if (state.isRunning) R.string.most_disconnect else R.string.most_connect),
                                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -112,7 +113,7 @@ internal fun MostScreen(
                                 val action = stringResource(if (state.isRunning) R.string.most_disconnect else R.string.most_connect)
                                 Surface(
                                     onClick = { onAction(MainAction.ToggleService) },
-                                    enabled = state.isRunning || state.selectedGuid != null,
+                                    enabled = state.isRunning || (state.selectedGuid != null && !state.routeBusy),
                                     modifier = Modifier.size(88.dp).semantics { contentDescription = action; role = Role.Button },
                                     shape = CircleShape,
                                     color = if (state.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -134,8 +135,13 @@ internal fun MostScreen(
                         val profile = state.selectedProfile
                         Card(onClick = { tab = 1 }, shape = RoundedCornerShape(22.dp)) {
                             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(profile?.let { countryName(it) } ?: stringResource(R.string.most_choose), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                if (profile != null) {
+                                Text(if (state.mostRoute.enabled) routeCountryName(state.mostRoute.country)
+                                    else profile?.let { countryName(it) } ?: stringResource(R.string.most_choose),
+                                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                if (state.mostRoute.enabled) {
+                                    Text(stringResource(R.string.most_route_auto), color = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(R.string.most_route_scope), style = MaterialTheme.typography.bodySmall)
+                                } else if (profile != null) {
                                     Text(profile.remarks, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     Text(routeName(profile), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                                 } else Text(stringResource(R.string.most_first_subscription), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -153,67 +159,138 @@ internal fun MostScreen(
                             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 if (state.isRunning) {
                                     val health = state.health
-                                    val label = when (health?.state) {
-                                        com.v2ray.ang.dto.MostLinkState.ONLINE -> R.string.most_health_online
-                                        com.v2ray.ang.dto.MostLinkState.RECOVERING -> R.string.most_health_recovering
-                                        com.v2ray.ang.dto.MostLinkState.NO_INTERNET -> R.string.most_health_failed
-                                        com.v2ray.ang.dto.MostLinkState.NO_NETWORK -> R.string.most_health_no_network
-                                        com.v2ray.ang.dto.MostLinkState.UNSUPPORTED -> R.string.most_health_unsupported
-                                        else -> R.string.most_health_checking
-                                    }
-                                    Text(stringResource(label), style = MaterialTheme.typography.titleMedium,
-                                        color = if (health?.state == com.v2ray.ang.dto.MostLinkState.NO_INTERNET) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                                    Text(stringResource(mostHealthLabel(health?.state)), style = MaterialTheme.typography.titleMedium,
+                                        color = if (health?.state in listOf(com.v2ray.ang.dto.MostLinkState.NO_ROUTE,
+                                            com.v2ray.ang.dto.MostLinkState.SERVER_UNAVAILABLE, com.v2ray.ang.dto.MostLinkState.WRONG_COUNTRY))
+                                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                                    if (health?.state == com.v2ray.ang.dto.MostLinkState.RECOVERING && health.total > 0)
+                                        Text(stringResource(R.string.most_route_attempt, health.attempt, health.total))
+                                    mostHealthDetail(health?.state)?.let { Text(stringResource(it), style = MaterialTheme.typography.bodyMedium) }
                                     if (!health?.ip.isNullOrBlank()) {
                                         Text(stringResource(R.string.most_exit_ip, health!!.ip))
                                         if (health.country.isNotBlank()) Text(stringResource(R.string.most_exit_country,
                                             java.util.Locale.forLanguageTag("und-" + health.country).displayCountry))
                                     } else if (health?.state == com.v2ray.ang.dto.MostLinkState.ONLINE) Text(stringResource(R.string.most_exit_unknown))
-                                    TextButton(onClick = { onAction(MainAction.RefreshConnectionHealth) }) { Text(stringResource(R.string.most_health_refresh)) }
+                                    TextButton(onClick = { onAction(MainAction.RefreshConnectionHealth) }) {
+                                        Text(stringResource(if (health?.state in listOf(com.v2ray.ang.dto.MostLinkState.NO_ROUTE,
+                                            com.v2ray.ang.dto.MostLinkState.SERVER_UNAVAILABLE, com.v2ray.ang.dto.MostLinkState.NO_INTERNET))
+                                            R.string.most_route_retry else R.string.most_health_refresh))
+                                    }
+                                    if (health?.state == com.v2ray.ang.dto.MostLinkState.NO_ROUTE)
+                                        TextButton(onClick = { onAction(MainAction.UpdateSubscriptions) }, enabled = !loading) { Text(stringResource(R.string.most_refresh)) }
                                 }
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.most_auto_recovery), Modifier.weight(1f))
-                                    Switch(checked = state.autoRecovery, onCheckedChange = { onAction(MainAction.SetAutoRecovery(it)) })
-                                }
-                                Text(stringResource(if (state.backupGuid.isBlank()) R.string.most_backup_hint else R.string.most_backup_configured),
+                                if (state.mostRoute.enabled) Text(stringResource(R.string.most_route_auto_hint),
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                else {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(stringResource(R.string.most_auto_recovery), Modifier.weight(1f))
+                                        Switch(checked = state.autoRecovery, onCheckedChange = { onAction(MainAction.SetAutoRecovery(it)) })
+                                    }
+                                    Text(stringResource(if (state.backupGuid.isBlank()) R.string.most_backup_hint else R.string.most_backup_configured),
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
+                    }
+                    state.connectionFailure?.let { message -> item(span = { GridItemSpan(maxLineSpan) }) {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(message))
+                                TextButton(onClick = { tab = 1 }) { Text(stringResource(R.string.most_choose)) }
+                            }
+                        }
+                    } }
+                    if (state.subscriptionFailure != null) item(span = { GridItemSpan(maxLineSpan) }) {
+                        MostLink(R.string.most_route_subscription_attention, R.drawable.ic_subscriptions_24dp, { tab = 2 })
                     }
                     if (state.selectedGuid == null) item(span = { GridItemSpan(maxLineSpan) }) {
                         Button(onClick = { onAction(MainAction.OpenImport()) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_import_title)) }
                     }
                 }
                 1 -> {
-                    item(span = { GridItemSpan(maxLineSpan) }) { Text(stringResource(R.string.most_servers), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        OutlinedTextField(value = state.searchQuery, onValueChange = { onAction(MainAction.Search(it)) }, label = { Text(stringResource(R.string.most_search)) }, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(18.dp))
+                        Text(stringResource(R.string.most_route_pick_country), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(state.groups, key = { it.id }) { groupItem ->
-                                FilterChip(selected = state.selectedGroupId == groupItem.id, onClick = { onAction(MainAction.SelectGroup(groupItem.id)) }, label = { Text(groupItem.remarks) })
+                                FilterChip(selected = state.selectedGroupId == groupItem.id,
+                                    onClick = { onAction(MainAction.SelectGroup(groupItem.id)) }, label = { Text(groupItem.remarks) })
                             }
                         }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text(stringResource(R.string.most_favorites)) })
-                            Spacer(Modifier.weight(1f))
-                            IconButton(onClick = { onAction(MainAction.SortByTestResults) }) { Icon(painterResource(R.drawable.ic_most_sort), stringResource(R.string.most_sort)) }
-                            TextButton(onClick = { onAction(if (state.isTesting) MainAction.CancelTesting else MainAction.TestRealAllServers) }) { Text(stringResource(if (state.isTesting) R.string.most_stop else R.string.most_test)) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(selected = !showConnections, onClick = { showConnections = false }, label = { Text(stringResource(R.string.most_route_countries)) })
+                            FilterChip(selected = showConnections, onClick = { showConnections = true }, label = { Text(stringResource(R.string.most_route_manual)) })
                         }
                     }
-                    if (rows.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(stringResource(if (favoritesOnly) R.string.most_no_favorites else R.string.most_no_servers), Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!showConnections) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(stringResource(R.string.most_route_country_hint), style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (state.routeCountries.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(stringResource(R.string.most_route_unknown), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = { showConnections = true }) { Text(stringResource(R.string.most_route_all)) }
+                        }
+                        items(state.routeCountries, key = { it.country }) { country ->
+                            val selected = state.mostRoute.enabled && state.mostRoute.country == country.country &&
+                                state.mostRoute.groupId == state.selectedGroupId
+                            Card(onClick = { onAction(MainAction.ChooseCountry(country.country)); tab = 0 }, enabled = !state.routeBusy,
+                                modifier = Modifier.fillMaxWidth().semantics { this.selected = selected }, shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)) {
+                                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Icon(painterResource(R.drawable.ic_most_servers), null, tint = MaterialTheme.colorScheme.primary)
+                                    Text(routeCountryName(country.country), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.most_route_count, country.routes), style = MaterialTheme.typography.bodySmall)
+                                    Text(stringResource(if (selected) R.string.most_route_selected else R.string.most_route_auto),
+                                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            TextButton(onClick = { showConnections = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_route_all)) }
+                        }
+                    } else {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(stringResource(R.string.most_route_manual_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedTextField(value = state.searchQuery, onValueChange = { onAction(MainAction.Search(it)) },
+                                label = { Text(stringResource(R.string.most_search)) }, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(18.dp))
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text(stringResource(R.string.most_favorites)) })
+                                Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { onAction(MainAction.SortByTestResults) }) { Icon(painterResource(R.drawable.ic_most_sort), stringResource(R.string.most_sort)) }
+                                TextButton(onClick = { onAction(if (state.isTesting) MainAction.CancelTesting else MainAction.TestRealAllServers) }) {
+                                    Text(stringResource(if (state.isTesting) R.string.most_stop else R.string.most_test))
+                                }
+                            }
+                        }
+                        if (rows.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(stringResource(if (favoritesOnly) R.string.most_no_favorites else R.string.most_no_servers), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        items(rows, key = { it.guid }) { row ->
+                            MostServerRow(row, row.guid == state.selectedGuid, row.guid in state.favoriteGuids, row.guid == state.backupGuid, onAction)
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            TextButton(onClick = { onAction(MainAction.Search("")); advanced = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_advanced)) }
+                        }
                     }
-                    items(rows, key = { it.guid }) { row ->
-                        MostServerRow(row, row.guid == state.selectedGuid, row.guid in state.favoriteGuids, row.guid == state.backupGuid, onAction)
-                    }
-                    item(span = { GridItemSpan(maxLineSpan) }) { TextButton(onClick = { onAction(MainAction.Search("")); advanced = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_advanced)) } }
                 }
                 2 -> {
                     item { Text(stringResource(R.string.most_subscriptions), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
                     item { Text(stringResource(R.string.most_subscription_hint), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    state.subscriptionFailure?.let { failure -> item {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(R.string.most_route_subscription_attention), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(failure.messageRes))
+                                TextButton(onClick = { onAction(MainAction.DismissSubscriptionFailure) }) { Text(stringResource(R.string.most_route_understood)) }
+                            }
+                        }
+                    } }
                     item { Button(onClick = { onAction(MainAction.OpenImport()) }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_import_title)) } }
                     item { OutlinedButton(onClick = { onAction(MainAction.UpdateSubscriptions) }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_refresh)) } }
                     if (state.subscriptions.isEmpty()) item {
@@ -431,3 +508,35 @@ private fun countryName(profile: ProfileItem): String = stringResource(when (Mos
 private fun routeName(profile: ProfileItem): String = stringResource(
     if (MostPresentation.isBridge(profile.remarks)) R.string.most_bridge else R.string.most_direct
 )
+
+
+@Composable
+private fun routeCountryName(code: String): String = stringResource(when (code) {
+    "nl" -> R.string.most_nl
+    "de" -> R.string.most_de
+    "pl" -> R.string.most_pl
+    "fi" -> R.string.most_fi
+    "msk" -> R.string.most_route_russia
+    else -> R.string.most_server
+})
+
+private fun mostHealthLabel(state: com.v2ray.ang.dto.MostLinkState?): Int = when (state) {
+    com.v2ray.ang.dto.MostLinkState.ONLINE -> R.string.most_health_online
+    com.v2ray.ang.dto.MostLinkState.RECOVERING -> R.string.most_health_recovering
+    com.v2ray.ang.dto.MostLinkState.NO_NETWORK -> R.string.most_route_no_network_title
+    com.v2ray.ang.dto.MostLinkState.NO_INTERNET -> R.string.most_route_no_internet_title
+    com.v2ray.ang.dto.MostLinkState.SERVER_UNAVAILABLE -> R.string.most_route_server_unavailable_title
+    com.v2ray.ang.dto.MostLinkState.NO_ROUTE -> R.string.most_route_none_title
+    com.v2ray.ang.dto.MostLinkState.WRONG_COUNTRY -> R.string.most_route_wrong_country_title
+    com.v2ray.ang.dto.MostLinkState.UNSUPPORTED -> R.string.most_health_unsupported
+    else -> R.string.most_health_checking
+}
+
+private fun mostHealthDetail(state: com.v2ray.ang.dto.MostLinkState?): Int? = when (state) {
+    com.v2ray.ang.dto.MostLinkState.NO_NETWORK -> R.string.most_route_no_network
+    com.v2ray.ang.dto.MostLinkState.NO_INTERNET -> R.string.most_route_no_internet
+    com.v2ray.ang.dto.MostLinkState.SERVER_UNAVAILABLE -> R.string.most_route_server_unavailable
+    com.v2ray.ang.dto.MostLinkState.NO_ROUTE -> R.string.most_route_none
+    com.v2ray.ang.dto.MostLinkState.WRONG_COUNTRY -> R.string.most_route_wrong_country
+    else -> null
+}

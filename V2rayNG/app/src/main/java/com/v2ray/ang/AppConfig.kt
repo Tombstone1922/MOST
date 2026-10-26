@@ -181,6 +181,7 @@ object AppConfig {
     /** Message constants for communication. */
     const val MSG_MOST_HEALTH = 91
     const val MSG_MOST_HEALTH_REQUEST = 92
+    const val MSG_MOST_ROUTE_CHANGED = 93
     const val MSG_REGISTER_CLIENT = 1
     const val MSG_STATE_RUNNING = 11
     const val MSG_STATE_NOT_RUNNING = 12

@@ -40,6 +40,22 @@ class MainRepository(
     private val app: AngApplication
 ) : MainDataSource {
 
+    override fun getMostRouteSelection() = SettingsManager.getMostRouteSelection()
+    override fun getMostRouteCandidates(groupId: String) = SettingsManager.getMostRouteCandidates(groupId)
+    override fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection) = SettingsManager.getMostLastRoute(selection)
+    override fun setMostRouteSelection(selection: com.v2ray.ang.core.MostRouteSelection) {
+        val old = SettingsManager.getMostRouteSelection()
+        val oldGuid = MmkvManager.getSelectServer()
+        try {
+            SettingsManager.setMostRouteSelection(selection)
+            MmkvManager.setSelectServer(selection.preferredGuid)
+        } catch (error: Exception) {
+            SettingsManager.setMostRouteSelection(old)
+            oldGuid?.let(MmkvManager::setSelectServer)
+            throw error
+        }
+    }
+
     override fun getAutoRecovery() = SettingsManager.isMostAutoRecoveryEnabled()
     override fun setAutoRecovery(value: Boolean) { check(MmkvManager.encodeSettings("most_auto_recovery", value)) }
     override fun getBackupGuid() = SettingsManager.getMostBackupGuid()

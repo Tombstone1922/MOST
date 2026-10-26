@@ -19,6 +19,7 @@ import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.RoutingType
 import com.v2ray.ang.enums.VpnInterfaceAddressConfig
 import com.v2ray.ang.extension.moveItem
+import com.v2ray.ang.extension.isComplexType
 import com.v2ray.ang.handler.MmkvManager.decodeAllServerList
 import com.v2ray.ang.handler.MmkvManager.decodeServerConfig
 import com.v2ray.ang.handler.MmkvManager.decodeSubsList
@@ -41,6 +42,39 @@ object SettingsManager {
     fun isMostAutoRecoveryEnabled() = MmkvManager.decodeSettingsBool("most_auto_recovery", true)
     fun getMostBackupGuid() = MmkvManager.decodeSettingsString("most_backup_guid").orEmpty()
 
+
+    fun getMostRouteSelection(): com.v2ray.ang.core.MostRouteSelection =
+        JsonUtil.fromJsonSafe(MmkvManager.decodeSettingsString("most_route_selection").orEmpty(),
+            com.v2ray.ang.core.MostRouteSelection::class.java) ?: com.v2ray.ang.core.MostRouteSelection()
+
+    fun setMostRouteSelection(selection: com.v2ray.ang.core.MostRouteSelection) {
+        check(!selection.enabled || selection.country in com.v2ray.ang.core.MostRoutePolicy.countries)
+        check(MmkvManager.encodeSettings("most_route_selection", JsonUtil.toJson(selection)))
+    }
+
+    fun getMostRouteCandidates(groupId: String): List<com.v2ray.ang.core.MostRouteCandidate> {
+        val guids = if (groupId.isBlank()) MmkvManager.decodeAllServerList() else MmkvManager.decodeServerList(groupId)
+        return guids.distinct().mapNotNull { guid ->
+            val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
+            val port = profile.serverPort?.toIntOrNull() ?: return@mapNotNull null
+            if (profile.configType.isComplexType() || profile.server.isNullOrBlank() || port !in 1..65535) return@mapNotNull null
+            if (MmkvManager.decodeSubscription(profile.subscriptionId)?.enabled == false) return@mapNotNull null
+            val country = com.v2ray.ang.core.MostRoutePolicy.country(profile.remarks, profile.server)
+            if (country.isBlank()) return@mapNotNull null
+            com.v2ray.ang.core.MostRouteCandidate(guid, country, profile.subscriptionId, profile.network.orEmpty(),
+                com.v2ray.ang.core.MostRoutePolicy.isBridge(profile.remarks))
+        }
+    }
+
+    fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection): String =
+        MmkvManager.decodeSettingsString("most_last_route:${selection.groupId}:${selection.country}").orEmpty()
+
+    fun rememberMostRoute(selection: com.v2ray.ang.core.MostRouteSelection, guid: String) {
+        if (selection.enabled && selection == getMostRouteSelection() && getMostLastRoute(selection) != guid) {
+            if (!MmkvManager.encodeSettings("most_last_route:${selection.groupId}:${selection.country}", guid))
+                LogUtil.w(AppConfig.TAG, "MOST route cache write failed: profile=$guid")
+        }
+    }
 
     /** An installation identifier, not a hardware serial; MMKV retains it across updates. */
     @Synchronized
