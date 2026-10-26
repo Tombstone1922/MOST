@@ -15,7 +15,7 @@ permissions:
   contents: read
 concurrency:
   group: most-android-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   bootstrap:
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.publish)

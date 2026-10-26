@@ -29,6 +29,12 @@ def gh(*params, optional=False):
         raise SystemExit(result.stderr or "GitHub command failed")
     return None if result.returncode else result.stdout
 
+if not args.bootstrap:
+    head = json.loads(gh("api", f"repos/{repo}/git/ref/heads/main"))["object"]["sha"]
+    if head != args.source_ref:
+        print("A newer main revision exists; obsolete build will not publish an OTA release")
+        raise SystemExit(0)
+
 existing_text = gh("api", f"repos/{repo}/releases/tags/{tag}", optional=True)
 existing = json.loads(existing_text) if existing_text else None
 with tempfile.TemporaryDirectory() as temp_dir:

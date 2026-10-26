@@ -70,7 +70,7 @@ object CoreServiceManager {
                 synchronized(this) {
                     val epoch = mostLifecycleEpoch
                     val recovered = reloadCore(reportFailure = false, allowed = allowed)
-                    if (!recovered && allowed() && epoch == mostLifecycleEpoch && !isRunning()) {
+                    if (!recovered && epoch == mostLifecycleEpoch && getService() === service && !isRunning()) {
                         MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, "most-core-failed")
                         serviceControl?.get()?.stopService()
                     }
@@ -85,16 +85,16 @@ object CoreServiceManager {
                         val epoch = mostLifecycleEpoch
                         MmkvManager.setSelectServer(target)
                         val recovered = reloadCore(reportFailure = false, allowed = allowed)
-                        if (!recovered && allowed() && mostLifecycleEpoch == epoch && getService() === service) {
+                        if (!recovered && mostLifecycleEpoch == epoch && getService() === service) {
                             // Roll back a rejected native configuration while the same service still owns the tunnel.
                             // A newer user request is resolved again by launchCore and takes priority over this fallback.
                             MmkvManager.setSelectServer(expected)
                             try {
                                 coreController.stopLoop()
-                                if (allowed() && mostLifecycleEpoch == epoch) launchCore(service, currentVpnInterface, isReload = true)
+                                if (mostLifecycleEpoch == epoch && getService() === service) launchCore(service, currentVpnInterface, isReload = true)
                             } catch (error: Exception) {
                                 LogUtil.e(AppConfig.TAG, "MOST route rollback failed: component=core-reload profile=$expected", error)
-                                if (allowed() && mostLifecycleEpoch == epoch) {
+                                if (mostLifecycleEpoch == epoch && getService() === service) {
                                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, "most-no-route")
                                     serviceControl?.get()?.stopService()
                                 }
@@ -336,7 +336,9 @@ object CoreServiceManager {
         val service = getService() ?: return false
         if (!isRunning()) return false
         val epoch = mostLifecycleEpoch
-        fun valid() = allowed() && epoch == mostLifecycleEpoch && getService() === service
+        // Once admitted, a monitor refresh must not strand the native core between stop/start.
+        // Only service teardown (epoch or owner change) invalidates an in-flight reload.
+        fun valid() = epoch == mostLifecycleEpoch && getService() === service
 
         return try {
             val tunFd = currentVpnInterface
@@ -345,7 +347,7 @@ object CoreServiceManager {
             connectionTestScope.coroutineContext.cancelChildren()
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
 
-            if (!valid()) return false
+            if (!valid() || !allowed()) return false
             coreController.stopLoop()
             if (!valid()) return false
             launchCore(service, tunFd, isReload = true)
