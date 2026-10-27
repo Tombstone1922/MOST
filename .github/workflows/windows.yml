@@ -1,0 +1,72 @@
+name: MOST Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['Windows/**', 'ci/windows/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['Windows/**', 'ci/windows/**', '.github/workflows/windows.yml']
+permissions:
+  contents: read
+concurrency:
+  group: most-windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compile and focused parser, routing and storage checks
+        run: dotnet run --project Windows/MOST.Windows.Tests/MOST.Windows.Tests.csproj -c Release
+      - name: Publish self-contained desktop executable
+        run: dotnet publish Windows/MOST.Windows/MOST.Windows.csproj -c Release -r win-x64 --self-contained true -o out/windows/app
+      - name: Prepare pinned Xray and official Wintun
+        run: python ci/windows/prepare.py
+      - name: Check generated TCP, gRPC and XHTTP configs without opening a VPN
+        shell: pwsh
+        run: |
+          foreach ($config in Get-ChildItem out/windows/config-tests/*.json) {
+            & out/windows/app/core/xray.exe run -test -config $config.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Xray rejected $($config.Name)" }
+          }
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) { choco install innosetup --no-progress -y }
+          if (!(Test-Path $compiler)) { throw 'Inno Setup compiler not available' }
+          & $compiler ci/windows/setup.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Package portable build and exact Windows source
+        shell: pwsh
+        run: |
+          Compress-Archive -Path out/windows/app/* -DestinationPath out/windows/MOST-Windows-0.1.0-Portable.zip
+          git archive --format=zip --output=out/windows/MOST-Windows-0.1.0-Source.zip HEAD Windows ci/windows .github/workflows/windows.yml LICENSE
+          Get-ChildItem out/windows -File | Where-Object { $_.Extension -in '.exe', '.zip' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content out/windows/SHA256SUMS-Windows.txt -Encoding utf8
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MOST-Windows-0.1.0
+          path: |
+            out/windows/*.exe
+            out/windows/*.zip
+            out/windows/SHA256SUMS-Windows.txt
+          retention-days: 14
+      - name: Publish Windows preview separately from Android OTA
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view windows-v0.1.0 --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'Windows version is already published; increase the version before releasing again.' }
+          gh release create windows-v0.1.0 out/windows/MOST-Windows-0.1.0-Setup.exe out/windows/MOST-Windows-0.1.0-Portable.zip out/windows/MOST-Windows-0.1.0-Source.zip out/windows/SHA256SUMS-Windows.txt --target $env:GITHUB_SHA --title 'MOST Windows 0.1.0' --notes-file Windows/RELEASE_NOTES.md --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
