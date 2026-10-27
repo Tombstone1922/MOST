@@ -8,7 +8,7 @@ on:
         default: true
   push:
     branches: [main]
-    paths: ['V2rayNG/**', 'ci/**', '.github/workflows/build.yml', 'compile-hevtun.sh', 'hev-socks5-tunnel/**', 'release-inputs/**']
+    paths: ['V2rayNG/**', 'ci/**', '!ci/windows/**', '.github/workflows/build.yml', 'compile-hevtun.sh', 'hev-socks5-tunnel/**', 'release-inputs/**']
   pull_request:
     branches: [main]
 permissions:
