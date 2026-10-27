@@ -14,7 +14,7 @@ public sealed class Storage
     public Storage(string? file = null) => _file = file ?? Path.Combine(Root, "state.bin");
     public AppState Load()
     {
-        if (!File.Exists(_file)) return new AppState();
+        if (!File.Exists(_file)) { var initial = new AppState(); Save(initial); return initial; }
         try { return JsonSerializer.Deserialize<AppState>(Protect(File.ReadAllBytes(_file), false), Json) ?? throw new UserError("Пустое хранилище настроек."); }
         catch (Exception e) when (e is not UserError) { throw new UserError("Не удалось открыть сохранённые настройки Windows. Файл не перезаписан. Возможно, он принадлежит другому пользователю Windows."); }
     }

@@ -43,7 +43,9 @@ state.TunMode = false;
 Check(ConfigBuilder.Build(profiles[0], state, 16810, 16811, false)["inbounds"]!.AsArray().Count == 2, "proxy mode has no system routes");
 var storePath = Path.Combine(Path.GetTempPath(), "most-tests-" + Guid.NewGuid().ToString("N") + ".bin");
 try {
-    var store = new Storage(storePath); store.Save(state); var restored = store.Load();
+    var store = new Storage(storePath); var initial = store.Load();
+    Check(store.Load().DeviceId == initial.DeviceId, "HWID persists before the first subscription request or rejection");
+    store.Save(state); var restored = store.Load();
     Check(restored.DeviceId == state.DeviceId && restored.Profiles.Count == 3, "DPAPI state roundtrip and stable HWID");
     Check(!System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(storePath)).Contains(id), "credentials not plaintext on disk");
 } finally { File.Delete(storePath); }
