@@ -29,6 +29,9 @@ public sealed class ConnectionController
     private readonly object _logsLock = new();
     public event Action<ConnectionStatus>? Changed;
     public ConnectionStatus Status { get; private set; } = new(false, false, "VPN выключен", "Добавьте подписку и выберите подключение.");
+    public DateTimeOffset? ConnectedSince { get; private set; }
+    public int? LatencyMs { get; private set; }
+    public void ReportUnavailable(string detail) => Publish(new(false, false, "Не удалось подключиться", detail));
     public bool HasSession => _session != null;
     public string ProxyAddress => _httpPort == 0 ? "" : $"HTTP 127.0.0.1:{_httpPort} · SOCKS 127.0.0.1:{_socksPort}";
     public string Logs { get { lock (_logsLock) return string.Join(Environment.NewLine, _logs); } }
@@ -87,7 +90,7 @@ public sealed class ConnectionController
             ct.ThrowIfCancellationRequested();
             if (revision != Interlocked.Read(ref _revision)) throw new OperationCanceledException();
             if (!health.Active) throw new UserError(health.Detail);
-            Publish(health);
+            ConnectedSince = DateTimeOffset.Now; Publish(health);
             _monitor = MonitorAsync(_process, profile, revision, ct);
         } catch (OperationCanceledException) {
             await StopInsideAsync(); Publish(new(false, false, "VPN выключен", "Подключение отменено.")); throw;
@@ -104,6 +107,7 @@ public sealed class ConnectionController
     }
     private async Task StopInsideAsync()
     {
+        ConnectedSince = null; LatencyMs = null;
         _session?.Cancel();
         if (_monitor != null) { try { await _monitor; } catch (OperationCanceledException) { } _monitor = null; }
         if (_process != null) {
@@ -146,10 +150,12 @@ public sealed class ConnectionController
             ConnectTimeout = TimeSpan.FromSeconds(5), AllowAutoRedirect = false };
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(9) };
         try {
+            var timer = Stopwatch.StartNew();
             var text = await client.GetStringAsync("https://www.cloudflare.com/cdn-cgi/trace", ct);
             if (text.Length > 65536) throw new HttpRequestException();
             var data = text.Split('\n').Where(s => s.Contains('=')).Select(s => s.Split('=', 2)).ToDictionary(s => s[0], s => s[1]);
             if (data.TryGetValue("ip", out var ip) && IPAddress.TryParse(ip, out _)) {
+                LatencyMs = (int)timer.ElapsedMilliseconds;
                 var country = data.GetValueOrDefault("loc", "").Trim();
                 var matches = RoutePolicy.ExitMatches(profile, country);
                 return new(true, false, matches ? "VPN подключён" : "Выход в другой стране",

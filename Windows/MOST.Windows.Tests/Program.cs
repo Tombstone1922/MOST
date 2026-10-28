@@ -26,6 +26,33 @@ Reject(() => ProfileParser.Parse(Link("tcp").Replace("security=reality", "securi
 var state = new AppState { Profiles = profiles, SelectedId = profiles[0].Id, ExcludedApps = { @"C:\Apps\game.exe" } };
 Check(RoutePolicy.Filter(state).Count == 3, "bridges only by default");
 state.DirectRoutes = true; Check(RoutePolicy.Filter(state).Count == 0, "direct filtering"); state.DirectRoutes = false;
+var otherGroup = ProfileParser.Parse(Link("tcp"), "other")[0];
+var directProfile = ProfileParser.Parse(Link("grpc", "Germany" ).Replace("entry.msk1.example.com", "node.de13.example.com"), "family")[0];
+var nlProfile = ProfileParser.Parse(Link("tcp", "bridge-nl-tcp"), "family")[0];
+var candidateState = Storage.Clone(state); candidateState.Profiles.AddRange(new[] { otherGroup, directProfile, nlProfile });
+candidateState.LastWorking[RoutePolicy.CacheKey(profiles[2])] = profiles[2].Id;
+var candidates = RoutePolicy.Candidates(candidateState, "family", "de", false);
+Check(candidates.Count == 3 && candidates.All(p => p.GroupId == "family" && p.Country == "de" && p.IsBridge), "automatic candidates never cross subscription, country or route type");
+Check(candidates[0].Id == profiles[2].Id, "remembered working connection first");
+Check(RoutePolicy.Candidates(candidateState, "family", "de", false, profiles[2].Id)[^1].Id == profiles[2].Id, "failed working connection goes last on recovery");
+Check(RoutePolicy.Candidates(candidateState, "", "de", false).Count == 0, "no automatic all-subscription selection");
+Check(RoutePolicy.Candidates(candidateState, "family", "", false).Count == 0, "no automatic unknown-country selection");
+Check(RoutePolicy.Candidates(candidateState, "family", "de", true).Single().Id == directProfile.Id, "direct selection is isolated from bridges");
+var previousState = System.Text.Json.JsonSerializer.Deserialize<AppState>("{\"Schema\":1,\"DeviceId\":\"existing-hwid\",\"SelectedId\":\"existing-server\",\"TunMode\":false,\"ExcludedApps\":[\"C:\\\\Apps\\\\game.exe\"]}", Storage.Json)!;
+Check(previousState.DeviceId == "existing-hwid" && previousState.SelectedId == "existing-server" && !previousState.TunMode && previousState.ExcludedApps.Count == 1, "0.1.0 settings remain readable");
+Check(!previousState.AutoCountry && previousState.Favorites.Count == 0 && previousState.CheckUpdates, "new settings have compatible defaults");
+JsonObject Release(string version, string prefix = "windows-v", string host = "github.com", string digest = "") => new() {
+    ["draft"] = false, ["tag_name"] = prefix + version, ["body"] = "Понятные пользователю улучшения.",
+    ["assets"] = new JsonArray(new JsonObject { ["name"] = $"MOST-Windows-{version}-Setup.exe", ["size"] = 60000000,
+        ["browser_download_url"] = $"https://{host}/Tombstone1922/MOST/releases/download/{prefix}{version}/MOST-Windows-{version}-Setup.exe",
+        ["digest"] = digest.Length > 0 ? digest : "sha256:" + new string('a', 64) }) };
+var releases = new JsonArray(Release("0.1.0"), Release("0.3.0"), Release("0.4.5", "v"), Release("0.2.0"));
+Check(UpdateManager.SelectRelease(releases.ToJsonString(), "0.2.0")?.Version == "0.3.0", "OTA selects newest Windows update, independent from Android and list order");
+Check(UpdateManager.SelectRelease(new JsonArray(Release("0.2.0")).ToJsonString(), "0.2.0") == null, "OTA cannot downgrade or reinstall same version");
+Check(UpdateManager.SelectRelease(new JsonArray(Release("0.3.0", host: "example.com")).ToJsonString(), "0.2.0") == null, "OTA refuses foreign installer URL");
+Check(UpdateManager.SelectRelease(new JsonArray(Release("0.3.0", digest: "sha256:bad")).ToJsonString(), "0.2.0") == null, "OTA refuses missing or invalid digest");
+var draftRelease = Release("0.3.0"); draftRelease["draft"] = true;
+Check(UpdateManager.SelectRelease(new JsonArray(draftRelease).ToJsonString(), "0.2.0") == null, "draft installers cannot reach users");
 var output = Path.GetFullPath("out/windows/config-tests"); Directory.CreateDirectory(output);
 foreach (var profile in profiles) {
     var config = ConfigBuilder.Build(profile, state, 16810, 16811, true);

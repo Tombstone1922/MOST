@@ -10,12 +10,15 @@ namespace Most.Windows.Core;
 /// Owns durable desktop state and subscription transactions; views only dispatch actions.
 public sealed class AppModel
 {
-    public const string Version = "0.1.0";
+    public const string Version = "0.2.0";
     private readonly Storage _storage = new();
     private readonly SemaphoreSlim _data = new(1, 1);
     public bool Initialized { get; private set; }
     public AppState State { get; private set; } = new();
     public ConnectionController Connection { get; } = new();
+    private CancellationTokenSource? _routeSession;
+    private Task? _recovery;
+    public UpdateManager Updates { get; } = new();
     public event Action? Changed;
     public async Task InitializeAsync(CancellationToken ct)
     {
@@ -46,10 +49,11 @@ public sealed class AppModel
                 draft.Profiles.RemoveAll(p => p.GroupId == sub.Id); draft.Profiles.AddRange(profiles);
                 if (existing == null) draft.Subscriptions.Add(sub);
                 draft.GroupFilter = sub.Id;
+                if (draft.AutoGroupId != sub.Id) draft.AutoCountry = false;
             } else {
                 var profiles = await Task.Run(() => ProfileParser.Parse(input, "local"), ct);
                 var known = draft.Profiles.Select(p => p.Id).ToHashSet();
-                draft.Profiles.AddRange(profiles.Where(p => known.Add(p.Id))); draft.GroupFilter = "local";
+                draft.Profiles.AddRange(profiles.Where(p => known.Add(p.Id))); draft.GroupFilter = "local"; draft.AutoCountry = false;
             }
             var selected = draft.Profiles.FirstOrDefault(p => p.GroupId == draft.GroupFilter && p.Id == draft.SelectedId)
                 ?? draft.Profiles.FirstOrDefault(p => p.GroupId == draft.GroupFilter);
@@ -64,7 +68,7 @@ public sealed class AppModel
     }
     public async Task SelectAsync(string id, CancellationToken ct) => await EditAsync(s => {
         if (s.Profiles.All(p => p.Id != id)) throw new UserError("Подключение больше не существует. Обновите список.");
-        s.SelectedId = id;
+        s.SelectedId = id; s.AutoCountry = false;
     }, ct);
     public async Task FiltersAsync(string group, string country, bool direct, CancellationToken ct) =>
         await EditAsync(s => { s.GroupFilter = group; s.CountryFilter = country; s.DirectRoutes = direct; }, ct);
@@ -78,19 +82,83 @@ public sealed class AppModel
     }, ct);
     public async Task RemoveAsync(string id, CancellationToken ct)
     {
-        if (Connection.HasSession && Connection.Status.Profile?.GroupId == id) await Connection.StopAsync();
+        if (Connection.HasSession && Connection.Status.Profile?.GroupId == id) await StopAsync();
         await EditAsync(s => {
             s.Subscriptions.RemoveAll(x => x.Id == id); s.Profiles.RemoveAll(p => p.GroupId == id);
             if (s.Selected == null) s.SelectedId = s.Profiles.FirstOrDefault()?.Id ?? "";
             if (s.GroupFilter == id) s.GroupFilter = "";
+            if (s.AutoGroupId == id) s.AutoCountry = false;
         }, ct);
     }
+    public async Task ChooseCountryAsync(string group, string country, bool direct, CancellationToken ct) => await EditAsync(s => {
+        var candidates = RoutePolicy.Candidates(s, group, country, direct);
+        if (candidates.Count == 0) throw new UserError("Для этой страны нет подходящих подключений в выбранной подписке.");
+        s.AutoCountry = true; s.AutoGroupId = group; s.AutoCountryCode = country; s.AutoDirect = direct;
+        s.SelectedId = candidates[0].Id; s.GroupFilter = group; s.CountryFilter = country; s.DirectRoutes = direct;
+    }, ct);
+    public Task FavoriteAsync(string id, CancellationToken ct) => EditAsync(s => {
+        if (s.Profiles.All(p => p.Id != id)) throw new UserError("Подключение больше не существует.");
+        if (!s.Favorites.Remove(id)) s.Favorites.Add(id);
+    }, ct);
+    public Task UpdatePreferencesAsync(bool enabled, CancellationToken ct) => EditAsync(s => s.CheckUpdates = enabled, ct);
+    public Task MarkUpdateNotifiedAsync(string version, CancellationToken ct) => EditAsync(s => s.NotifiedUpdate = version, ct);
     public async Task ConnectAsync(CancellationToken ct)
     {
         RequireInitialized();
+        await StopAsync(); ct.ThrowIfCancellationRequested();
         var snapshot = Storage.Clone(State);
-        var profile = snapshot.Selected ?? throw new UserError("Сначала выберите подключение на вкладке «Серверы».");
-        await Connection.ConnectAsync(profile, snapshot, ct);
+        _routeSession = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var token = _routeSession.Token;
+        if (!snapshot.AutoCountry) {
+            var profile = snapshot.Selected ?? throw new UserError("Сначала выберите страну или сервер.");
+            await Connection.ConnectAsync(profile, snapshot, token);
+            return;
+        }
+        await TryCountryAsync(snapshot, "", token);
+        _recovery = RecoverCountryAsync(snapshot, token);
+    }
+    private async Task TryCountryAsync(AppState snapshot, string failedId, CancellationToken ct)
+    {
+        var candidates = RoutePolicy.Candidates(snapshot, snapshot.AutoGroupId, snapshot.AutoCountryCode, snapshot.AutoDirect, failedId);
+        if (candidates.Count == 0) throw new UserError("Для выбранной страны нет подключений. Обновите подписку или выберите другую страну.");
+        foreach (var profile in candidates) {
+            ct.ThrowIfCancellationRequested();
+            try {
+                await Connection.ConnectAsync(profile, snapshot, ct);
+                var result = Connection.Status;
+                // Automatic mode must verify the requested exit; manual selection can show an unknown/mismatched exit.
+                if (result.Country.Length == 0 || !RoutePolicy.ExitMatches(profile, result.Country)) {
+                    await Connection.StopAsync(); continue;
+                }
+                snapshot.LastWorking[RoutePolicy.CacheKey(profile)] = profile.Id;
+                await EditAsync(s => { s.LastWorking[RoutePolicy.CacheKey(profile)] = profile.Id; }, ct);
+                return;
+            } catch (OperationCanceledException) { throw; }
+            catch (UserError) { }
+            catch (System.Net.Http.HttpRequestException) { }
+        }
+        throw new UserError("Не удалось подключиться к выбранной стране. Попробуйте другую страну или выберите сервер вручную.");
+    }
+    private async Task RecoverCountryAsync(AppState snapshot, CancellationToken ct)
+    {
+        try {
+            while (true) {
+                await Task.Delay(TimeSpan.FromSeconds(4), ct);
+                var status = Connection.Status;
+                if (status.Busy || (status.Active && status.Country.Length > 0 && status.Profile != null && RoutePolicy.ExitMatches(status.Profile, status.Country))) continue;
+                await TryCountryAsync(snapshot, status.Profile?.Id ?? "", ct);
+            }
+        } catch (OperationCanceledException) { }
+        catch (Exception e) {
+            if (!ct.IsCancellationRequested) Connection.ReportUnavailable(e is UserError ? e.Message : "Не удалось восстановить соединение. Нажмите «Подключить», чтобы попробовать снова.");
+        }
+    }
+    public async Task StopAsync()
+    {
+        _routeSession?.Cancel();
+        if (_recovery != null) { await _recovery; _recovery = null; }
+        await Connection.StopAsync();
+        _routeSession?.Dispose(); _routeSession = null;
     }
     private async Task EditAsync(Action<AppState> edit, CancellationToken ct)
     {

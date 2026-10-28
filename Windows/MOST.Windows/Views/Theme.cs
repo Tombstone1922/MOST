@@ -1,31 +1,55 @@
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
 
 namespace Most.Windows.Views;
 
 internal static class Theme
 {
-    public static readonly SolidColorBrush Background = Brush("#0B1120"), Panel = Brush("#121C30"), Input = Brush("#1C2941"),
-        Text = Brush("#F1F5FA"), Muted = Brush("#9CACBF"), Accent = Brush("#68E1D4"), BorderColor = Brush("#26344C");
+    public static readonly SolidColorBrush Background = Brush("#090F1B"), Panel = Brush("#111C2D"), Input = Brush("#1A2940"),
+        Text = Brush("#F0F6FC"), Muted = Brush("#8E9EB5"), Accent = Brush("#6DE1D0"), BorderColor = Brush("#24364B"),
+        AccentSoft = Brush("#163B3D"), Warning = Brush("#F2C879");
     public static SolidColorBrush Brush(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
     public static TextBlock Label(string text, double size = 14, Brush? color = null) => new() {
-        Text = text, FontSize = size, Foreground = color ?? Text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 9) };
+        Text = text, FontSize = size, Foreground = color ?? Text, TextWrapping = TextWrapping.Wrap,
+        LineHeight = size * 1.45, Margin = new Thickness(0, 0, 0, 8) };
     public static Button Button(string text, bool primary = false)
     {
         var b = new Button { Content = text, Background = primary ? Accent : Input, Foreground = primary ? Background : Text,
-            Padding = new Thickness(17, 11, 17, 11), Margin = new Thickness(0, 0, 9, 8), BorderThickness = new Thickness(0),
-            FontSize = 14, FontWeight = FontWeights.SemiBold, Cursor = System.Windows.Input.Cursors.Hand, MinHeight = 42 };
-        var border = new FrameworkElementFactory(typeof(Border)); border.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
-        border.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
-        var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
-        presenter.SetValue(FrameworkElement.MarginProperty, new Thickness(17, 11, 17, 11));
-        presenter.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-        presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center); border.AppendChild(presenter);
-        b.Template = new ControlTemplate(typeof(Button)) { VisualTree = border };
-        b.IsEnabledChanged += (_, _) => b.Opacity = b.IsEnabled ? 1 : .45;
+            Padding = new Thickness(16, 11, 16, 11), Margin = new Thickness(0, 0, 8, 8), BorderThickness = new Thickness(1),
+            BorderBrush = Brushes.Transparent, FontSize = 13, FontWeight = FontWeights.SemiBold,
+            Cursor = System.Windows.Input.Cursors.Hand, MinHeight = 40 };
+        b.Template = RoundedTemplate(12);
+        b.IsEnabledChanged += (_, _) => b.Opacity = b.IsEnabled ? 1 : .4;
         AutomationProperties.SetName(b, text); return b;
+    }
+    public static ControlTemplate RoundedTemplate(double radius)
+    {
+        var border = new FrameworkElementFactory(typeof(Border)); border.Name = "surface";
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(radius));
+        foreach (var property in new[] { Border.BackgroundProperty, Border.BorderBrushProperty, Border.BorderThicknessProperty })
+            border.SetBinding(property, new Binding(property.Name) { RelativeSource = RelativeSource.TemplatedParent });
+        var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+        presenter.SetBinding(FrameworkElement.MarginProperty, new Binding("Padding") { RelativeSource = RelativeSource.TemplatedParent });
+        presenter.SetBinding(FrameworkElement.HorizontalAlignmentProperty, new Binding("HorizontalContentAlignment") { RelativeSource = RelativeSource.TemplatedParent });
+        presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center); border.AppendChild(presenter);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
+        var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+        hover.Setters.Add(new Setter(UIElement.OpacityProperty, .82)); template.Triggers.Add(hover);
+        var focus = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
+        focus.Setters.Add(new Setter(Border.BorderBrushProperty, Accent, "surface")); template.Triggers.Add(focus);
+        return template;
+    }
+    public static Button Nav(string text, string glyph)
+    {
+        var b = Button(text); b.Background = Brushes.Transparent; b.HorizontalContentAlignment = HorizontalAlignment.Left;
+        b.Padding = new Thickness(14, 12, 14, 12); b.Margin = new Thickness(0, 2, 0, 3);
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 17, Width = 31, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center }); b.Content = row;
+        return b;
     }
     public static TextBox TextInput(string value = "", bool multiline = false) => new() {
         Text = value, Background = Input, Foreground = Text, CaretBrush = Accent, BorderBrush = BorderColor,
@@ -36,10 +60,21 @@ internal static class Theme
     public static Border Card(UIElement content) => new() { Child = content, Background = Panel,
         CornerRadius = new CornerRadius(20), Padding = new Thickness(22), BorderBrush = BorderColor,
         BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 0, 16) };
+    public static Border Pill(string value, bool accent = false) => new() {
+        Child = new TextBlock { Text = value, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = accent ? Accent : Muted },
+        Background = accent ? AccentSoft : Input, CornerRadius = new CornerRadius(7), Padding = new Thickness(9, 5, 9, 5),
+        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 8, 10) };
     public static CheckBox Check(string text, bool value) {
-        var c = new CheckBox { Content = text, IsChecked = value, Foreground = Text, FontSize = 14,
-            Margin = new Thickness(0, 5, 0, 13), VerticalContentAlignment = VerticalAlignment.Center };
+        var c = new CheckBox { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, IsChecked = value,
+            Foreground = Text, FontSize = 13, Margin = new Thickness(0, 6, 0, 13), VerticalContentAlignment = VerticalAlignment.Center };
         AutomationProperties.SetName(c, text); return c;
     }
-    public static ComboBox Combo() => new() { MinHeight = 35, FontSize = 14, Margin = new Thickness(0, 0, 9, 10), MinWidth = 150 };
+    public static ComboBox Combo() => new() { MinHeight = 36, FontSize = 13, Margin = new Thickness(0, 0, 8, 10), MinWidth = 170 };
+    public static Grid Columns(UIElement left, UIElement right, double leftWeight = 1, double rightWeight = 1)
+    {
+        var grid = new Grid(); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(leftWeight, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(rightWeight, GridUnitType.Star) });
+        grid.Children.Add(left); Grid.SetColumn(right, 2); grid.Children.Add(right); return grid;
+    }
 }

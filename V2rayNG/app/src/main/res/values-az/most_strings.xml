@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="most_tagline">YOUR CONNECTION</string>
+    <string name="most_tagline">Sərhədsiz əlaqə</string>
     <string name="most_connect">Connect</string>
     <string name="most_disconnect">Disconnect</string>
     <string name="most_servers">Servers</string>

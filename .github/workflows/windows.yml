@@ -49,12 +49,12 @@ jobs:
       - name: Package portable build and exact Windows source
         shell: pwsh
         run: |
-          Compress-Archive -Path out/windows/app/* -DestinationPath out/windows/MOST-Windows-0.1.0-Portable.zip
-          git archive --format=zip --output=out/windows/MOST-Windows-0.1.0-Source.zip HEAD Windows ci/windows .github/workflows/windows.yml LICENSE
+          Compress-Archive -Path out/windows/app/* -DestinationPath out/windows/MOST-Windows-0.2.0-Portable.zip
+          git archive --format=zip --output=out/windows/MOST-Windows-0.2.0-Source.zip HEAD Windows ci/windows .github/workflows/windows.yml LICENSE
           Get-ChildItem out/windows -File | Where-Object { $_.Extension -in '.exe', '.zip' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content out/windows/SHA256SUMS-Windows.txt -Encoding utf8
       - uses: actions/upload-artifact@v7
         with:
-          name: MOST-Windows-0.1.0
+          name: MOST-Windows-0.2.0
           path: |
             out/windows/*.exe
             out/windows/*.zip
@@ -68,16 +68,16 @@ jobs:
         run: |
           $head = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha'
           if ($head -ne $env:GITHUB_SHA) { throw 'A newer source revision exists; this build will not be published.' }
-          $draft = gh release view windows-v0.1.0 --repo $env:GITHUB_REPOSITORY --json isDraft --jq '.isDraft' 2>$null
+          $draft = gh release view windows-v0.2.0 --repo $env:GITHUB_REPOSITORY --json isDraft --jq '.isDraft' 2>$null
           if ($LASTEXITCODE -eq 0) {
             if ($draft -ne 'true') { throw 'Windows version is already published; increase the version before releasing again.' }
           } else {
-            gh release create windows-v0.1.0 --target $env:GITHUB_SHA --title 'MOST Windows 0.1.0' --notes-file Windows/RELEASE_NOTES.md --draft --prerelease --latest=false
+            gh release create windows-v0.2.0 --target $env:GITHUB_SHA --title 'MOST Windows 0.2.0' --notes-file Windows/RELEASE_NOTES.md --draft --prerelease --latest=false
             if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
           }
-          gh release upload windows-v0.1.0 out/windows/MOST-Windows-0.1.0-Setup.exe out/windows/MOST-Windows-0.1.0-Portable.zip out/windows/MOST-Windows-0.1.0-Source.zip out/windows/SHA256SUMS-Windows.txt --clobber
+          gh release upload windows-v0.2.0 out/windows/MOST-Windows-0.2.0-Setup.exe out/windows/MOST-Windows-0.2.0-Portable.zip out/windows/MOST-Windows-0.2.0-Source.zip out/windows/SHA256SUMS-Windows.txt --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Release upload failed; draft retained' }
           $head = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha'
           if ($head -ne $env:GITHUB_SHA) { throw 'Superseded build kept as draft' }
-          gh release edit windows-v0.1.0 --draft=false --prerelease --latest=false
+          gh release edit windows-v0.2.0 --draft=false --prerelease --latest=false
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

@@ -50,6 +50,13 @@ public sealed class AppState
     public bool DirectRoutes { get; set; }
     public bool TunMode { get; set; } = true;
     public List<string> ExcludedApps { get; set; } = new();
+    public bool AutoCountry { get; set; }
+    public string AutoGroupId { get; set; } = "";
+    public string AutoCountryCode { get; set; } = "";
+    public bool AutoDirect { get; set; }
+    public List<string> Favorites { get; set; } = new();
+    public bool CheckUpdates { get; set; } = true;
+    public string NotifiedUpdate { get; set; } = "";
     public Dictionary<string, string> LastWorking { get; set; } = new();
     public Profile? Selected => Profiles.FirstOrDefault(p => p.Id == SelectedId);
 }
@@ -82,5 +89,16 @@ public static class RoutePolicy
         (state.CountryFilter.Length == 0 || p.Country == state.CountryFilter) &&
         p.IsBridge != state.DirectRoutes && (search.Length == 0 || p.Name.Contains(search, StringComparison.OrdinalIgnoreCase)))
         .OrderBy(p => p.Country).ThenBy(p => p.Name).ToArray();
+    public static IReadOnlyList<Profile> Candidates(AppState state, string group, string country, bool direct, string failedId = "")
+    {
+        // Automatic selection is always restricted to one subscription, exit country and route type.
+        if (group.Length == 0 || country.Length == 0) return Array.Empty<Profile>();
+        var items = state.Profiles.Where(p => p.GroupId == group && p.Country == country && p.IsBridge != direct).ToArray();
+        var key = $"{group}:{country}:{!direct}";
+        state.LastWorking.TryGetValue(key, out var working);
+        return items.OrderBy(p => p.Id == failedId ? 1 : 0)
+            .ThenBy(p => p.Id == working ? 0 : p.Id == state.SelectedId ? 1 : 2)
+            .ThenBy(p => p.Transport == "tcp" ? 0 : p.Transport == "grpc" ? 1 : 2).Take(12).ToArray();
+    }
     public static string CacheKey(Profile p) => $"{p.GroupId}:{p.Country}:{p.IsBridge}";
 }

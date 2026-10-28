@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="most_tagline">ТВОЁ СОЕДИНЕНИЕ</string>
+    <string name="most_tagline">Связь без границ</string>
     <string name="most_connect">Подключить</string>
     <string name="most_disconnect">Отключить</string>
     <string name="most_servers">Серверы</string>
