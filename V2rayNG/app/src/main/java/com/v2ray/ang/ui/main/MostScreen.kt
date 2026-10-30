@@ -89,20 +89,20 @@ internal fun MostScreen(
                 }
             }
             if (loading || state.routeBusy) item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (state.rulesPending && state.isRunning) item(span = { GridItemSpan(maxLineSpan) }) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.most_ux_pending), style = MaterialTheme.typography.titleSmall)
+                        Button(onClick = { onAction(MainAction.ApplyRules) }, enabled = !state.rulesApplying && !state.routeBusy) {
+                            Text(stringResource(if (state.rulesApplying) R.string.most_ux_applying else R.string.most_ux_apply))
+                        }
+                    }
+                }
+            }
             when (tab) {
                 0 -> {
                     if (state.appUpdateAvailable) item(span = { GridItemSpan(maxLineSpan) }) {
                         MostLink(R.string.most_ota_banner, R.drawable.ic_check_update_24dp, { onNavigate(MainDestination.CheckUpdate) })
-                    }
-                    if (state.rulesPending && state.isRunning) item(span = { GridItemSpan(maxLineSpan) }) {
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(stringResource(R.string.most_ux_pending), style = MaterialTheme.typography.titleSmall)
-                                Button(onClick = { onAction(MainAction.ApplyRules) }, enabled = !state.rulesApplying && !state.routeBusy) {
-                                    Text(stringResource(if (state.rulesApplying) R.string.most_ux_applying else R.string.most_ux_apply))
-                                }
-                            }
-                        }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         val health = state.health
