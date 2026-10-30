@@ -49,6 +49,11 @@ class MostImportViewModelTest {
         storage = MmkvTestStorage(mapOf("settingsStorage" to mock<MMKV>()))
         data = mock()
         whenever(data.mainServiceEvent).thenReturn(emptyFlow())
+        // Subscription presentation and country routing are now part of every group refresh.
+        whenever(data.getString(R.string.most_subscription_fallback)).thenReturn("Subscription")
+        whenever(data.getString(R.string.most_local_profiles)).thenReturn("Local profiles")
+        whenever(data.getMostRouteSelection()).thenReturn(com.v2ray.ang.core.MostRouteSelection())
+        whenever(data.getMostRouteCandidates(any())).thenReturn(emptyList())
         whenever(data.getSelectedSubscriptionId()).thenAnswer { group }
         whenever(data.getSelectServer()).thenAnswer { selected }
         whenever(data.getFavoriteGuids()).thenAnswer { favorites }
@@ -115,7 +120,7 @@ class MostImportViewModelTest {
         text(url);model.onAction(MainAction.AllowImportHttp(true));model.onAction(MainAction.ConfirmImport)
         dispatcher.scheduler.advanceUntilIdle()
         val state=model.uiState.value
-        assertEquals(R.string.most_import_retry,state.importError);assertEquals(url,state.importText)
+        assertEquals(com.v2ray.ang.dto.SubscriptionFailure.NO_PROFILES.messageRes,state.importError);assertEquals(url,state.importText)
         assertTrue(state.importAllowHttp);assertTrue(state.importOpen);assertTrue(state.canImport)
         assertNull(state.importResult)
     }
