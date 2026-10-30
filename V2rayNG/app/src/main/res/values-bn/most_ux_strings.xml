@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_ux_pending">Saved rules have not been applied to the current connection.</string>
+    <string name="most_ux_apply">Apply and reconnect</string>
+    <string name="most_ux_applying">Reconnecting…</string>
+    <string name="most_ux_connection">Selected connection</string>
+    <string name="most_ux_rules">Connection rules</string>
+    <string name="most_ux_details">Connection details</string>
+    <string name="most_ux_hide_details">Hide details</string>
+    <string name="most_ux_tools">Advanced tools</string>
+    <string name="most_ux_delete">Delete</string>
+    <string name="most_ux_delete_subscription">Delete subscription?</string>
+    <string name="most_ux_delete_confirm">The subscription and its connections will be removed from this device. You can add the subscription again using its link.</string>
+    <string name="most_ux_stop_before_delete">Disconnect VPN before deleting a subscription.</string>
+    <string name="most_ux_edit">Edit connection</string>
+    <string name="most_ux_copy_link">Copy link</string>
+</resources>

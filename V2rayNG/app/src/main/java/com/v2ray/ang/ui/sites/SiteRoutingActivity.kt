@@ -1,5 +1,7 @@
 package com.v2ray.ang.ui.sites
 
+import android.content.Intent
+import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -21,8 +24,18 @@ import com.v2ray.ang.ui.compose.AppTopBar
 
 class SiteRoutingActivity : BaseComponentActivity() {
     private val model: SiteRoutingViewModel by viewModels()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setResult(RESULT_OK, Intent().putExtra(com.v2ray.ang.handler.SettingsChangeManager.EXTRA_RULES_EDITOR, true))
+    }
     @Composable override fun ScreenContent() {
         val state by model.state.collectAsStateWithLifecycle()
+        LaunchedEffect(state.applyRequested) {
+            if (state.applyRequested) {
+                setResult(RESULT_OK, Intent().putExtra(com.v2ray.ang.handler.SettingsChangeManager.EXTRA_RULES_EDITOR, true)
+                    .putExtra(com.v2ray.ang.handler.SettingsChangeManager.EXTRA_APPLY_RULES, true)); finish()
+            }
+        }
         SiteRoutingScreen(state, model::onAction) { finish() }
     }
 }
@@ -51,6 +64,12 @@ private fun SiteRoutingScreen(state: SiteRoutingUiState, action: (SiteRoutingAct
             }
             if (state.issue == SiteRoutingIssue.LOAD) OutlinedButton(onClick = { action(SiteRoutingAction.Load) }, enabled = !state.loading) { Text(stringResource(R.string.most_sites_retry)) }
             Button(onClick = { action(SiteRoutingAction.Save) }, enabled = editable, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_sites_save)) }
+            if (state.pending) {
+                Card { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.most_ux_pending))
+                    Button(onClick = { action(SiteRoutingAction.Apply) }, enabled = editable && !state.dirty) { Text(stringResource(R.string.most_ux_apply)) }
+                } }
+            }
             if (state.saved) Text(stringResource(R.string.most_sites_saved), color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.most_sites_dns_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.most_sites_reconnect), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

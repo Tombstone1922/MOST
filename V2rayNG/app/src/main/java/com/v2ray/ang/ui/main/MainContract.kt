@@ -60,6 +60,8 @@ data class MainUiState(
     val connectionFailure: Int? = null,
     val subscriptionFailure: com.v2ray.ang.dto.SubscriptionFailure? = null,
     val directRoutes: Boolean = false,
+    val rulesPending: Boolean = false,
+    val rulesApplying: Boolean = false,
 ) {
     val canImport: Boolean get() = importPreview.ready && !importAnalyzing && !importBusy &&
         importResult == null && (!importPreview.needsHttpConsent || importAllowHttp)
@@ -69,6 +71,8 @@ data class MainUiState(
  * All possible user interaction intents
  */
 sealed interface MainAction {
+    data object ApplyRules : MainAction
+    data object BeginRulesApply : MainAction
     data class ChooseCountry(val country: String) : MainAction
     data class ShowDirectRoutes(val enabled: Boolean) : MainAction
     data object DismissSubscriptionFailure : MainAction
@@ -97,6 +101,7 @@ sealed interface MainAction {
     data object SortByTestResults : MainAction
     data object UpdateSubscriptions : MainAction
     data class UpdateSubscription(val guid: String) : MainAction
+    data class DeleteSubscription(val guid: String) : MainAction
     data class RenameSubscription(val guid: String, val name: String) : MainAction
     data object ExportAll : MainAction
 

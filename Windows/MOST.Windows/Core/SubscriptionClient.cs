@@ -20,7 +20,7 @@ public static class SubscriptionClient
         for (var redirects = 0; redirects <= 5; redirects++) {
             if (current.Scheme == "http" && !allowHttp) throw new UserError("Подписка использует HTTP. Подтвердите разрешение HTTP в окне добавления.");
             using var request = new HttpRequestMessage(HttpMethod.Get, current);
-            request.Headers.TryAddWithoutValidation("User-Agent", "MOST-Windows/0.2.1");
+            request.Headers.TryAddWithoutValidation("User-Agent", "MOST-Windows/0.3.0");
             request.Headers.TryAddWithoutValidation("x-hwid", deviceId);
             request.Headers.TryAddWithoutValidation("x-device-os", "Windows");
             request.Headers.TryAddWithoutValidation("x-ver-os", Environment.OSVersion.Version.ToString());

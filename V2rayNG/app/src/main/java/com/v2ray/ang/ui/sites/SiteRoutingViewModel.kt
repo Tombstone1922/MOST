@@ -18,8 +18,10 @@ import kotlinx.coroutines.withContext
 internal interface SiteRoutingStore {
     fun load(): MostSiteRouting
     fun save(value: MostSiteRouting)
+    fun pending(): Boolean = false
 }
 private object SettingsSiteRoutingStore : SiteRoutingStore {
+    override fun pending() = SettingsManager.hasPendingMostRules()
     override fun load() = SettingsManager.getMostSiteRouting()
     override fun save(value: MostSiteRouting) = SettingsManager.saveMostSiteRouting(value)
 }
@@ -29,10 +31,14 @@ internal data class SiteRoutingUiState(
     val direct: String = "", val proxy: String = "", val loading: Boolean = true,
     val loaded: Boolean = false, val saving: Boolean = false, val saved: Boolean = false,
     val issue: SiteRoutingIssue? = null,
+    val pending: Boolean = false,
+    val applyRequested: Boolean = false,
+    val dirty: Boolean = false,
 )
 internal sealed interface SiteRoutingAction {
     data object Load : SiteRoutingAction
     data object Save : SiteRoutingAction
+    data object Apply : SiteRoutingAction
     data class Ru(val enabled: Boolean) : SiteRoutingAction
     data class Rf(val enabled: Boolean) : SiteRoutingAction
     data class Su(val enabled: Boolean) : SiteRoutingAction
@@ -54,6 +60,7 @@ internal class SiteRoutingViewModel(
         if (action == SiteRoutingAction.Load) { if (!_state.value.saving) load(); return }
         val current = _state.value
         if (!current.loaded || current.loading || current.saving) return
+        if (action == SiteRoutingAction.Apply) { if (current.pending && !current.dirty) _state.value = current.copy(applyRequested = true); return }
         if (action == SiteRoutingAction.Save) { save(current); return }
         _state.value = when (action) {
             is SiteRoutingAction.Ru -> current.copy(ru = action.enabled)
@@ -62,16 +69,16 @@ internal class SiteRoutingViewModel(
             is SiteRoutingAction.Direct -> current.copy(direct = action.text)
             is SiteRoutingAction.Proxy -> current.copy(proxy = action.text)
             else -> current
-        }.copy(saved = false, issue = null)
+        }.copy(saved = false, issue = null, dirty = true)
     }
     private fun load() {
         operation?.cancel()
         _state.value = _state.value.copy(loading = true, issue = null)
         operation = viewModelScope.launch {
             try {
-                val value = withContext(io) { store.load() }
+                val (value, pending) = withContext(io) { store.load() to store.pending() }
                 _state.value = SiteRoutingUiState(value.ruDirect, value.rfDirect, value.suDirect,
-                    value.directDomains.joinToString("\n"), value.proxyDomains.joinToString("\n"), loading = false, loaded = true)
+                    value.directDomains.joinToString("\n"), value.proxyDomains.joinToString("\n"), loading = false, loaded = true, pending = pending)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { report(error); _state.value = _state.value.copy(loading = false, issue = SiteRoutingIssue.LOAD) }
         }
@@ -84,8 +91,8 @@ internal class SiteRoutingViewModel(
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _state.value = draft.copy(issue = SiteRoutingIssue.INVALID); return@launch }
             try {
-                withContext(io) { store.save(value) }
-                _state.value = draft.copy(direct = value.directDomains.joinToString("\n"), proxy = value.proxyDomains.joinToString("\n"), saved = true)
+                val pending = withContext(io) { store.save(value); store.pending() }
+                _state.value = draft.copy(direct = value.directDomains.joinToString("\n"), proxy = value.proxyDomains.joinToString("\n"), saved = true, pending = pending, dirty = false)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { report(error); _state.value = draft.copy(issue = SiteRoutingIssue.SAVE) }
         }

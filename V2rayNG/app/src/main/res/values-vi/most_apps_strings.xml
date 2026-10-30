@@ -14,8 +14,8 @@
     <string name="most_apps_selected_count">Selected: %1$d</string>
     <string name="most_apps_selected_filter">Selected</string>
     <string name="most_apps_system_filter">System apps</string>
-    <string name="most_apps_apply">Apply</string>
-    <string name="most_apps_apply_hint">When you leave, an active VPN reconnects with your changes.</string>
+    <string name="most_apps_apply">Apply and reconnect</string>
+    <string name="most_apps_apply_hint">Use the button to apply your selection. Going back keeps changes for the next connection.</string>
     <string name="most_apps_vpn">Via VPN</string>
     <string name="most_apps_direct">Direct connection</string>
     <string name="most_apps_empty_only">No apps selected. Your apps will connect without VPN.</string>

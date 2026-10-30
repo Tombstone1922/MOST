@@ -22,7 +22,8 @@ public sealed class Profile
     public string Transport => Stream["network"]?.GetValue<string>() ?? "tcp";
     public string Country => RoutePolicy.Country(Name, Host);
     public bool IsBridge => RoutePolicy.IsBridge(Name, Host);
-    public string RouteLabel => IsBridge ? "Мост" : "Прямое";
+    public string RouteLabel => IsBridge ? "Через Москву" : "Без моста";
+    public string FriendlyName => $"{RoutePolicy.CountryName(Country)} · {(IsBridge ? "Через Москву" : "Без моста")}";
     public string Display => $"{Name}\n{RouteLabel} · {Transport.ToUpperInvariant()} · {Host}";
     public void AssignId() => Id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         string.Join("|", GroupId, Host.ToLowerInvariant(), Port.ToString(System.Globalization.CultureInfo.InvariantCulture), Uuid, Flow, Encryption, Stream.ToJsonString())))).ToLowerInvariant();
@@ -49,6 +50,7 @@ public sealed class AppState
     public string CountryFilter { get; set; } = "";
     public bool DirectRoutes { get; set; }
     public SiteRouting SiteRouting { get; set; } = new();
+    public long ConnectionSettingsRevision { get; set; }
     public bool TunMode { get; set; } = true;
     public List<string> ExcludedApps { get; set; } = new();
     public bool AutoCountry { get; set; }

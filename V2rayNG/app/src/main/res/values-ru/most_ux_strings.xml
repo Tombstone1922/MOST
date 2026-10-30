@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="most_ux_pending">Сохранённые правила ещё не применены к текущему соединению.</string>
+    <string name="most_ux_apply">Применить и переподключить</string>
+    <string name="most_ux_applying">Переподключаемся…</string>
+    <string name="most_ux_connection">Выбранное подключение</string>
+    <string name="most_ux_rules">Правила подключения</string>
+    <string name="most_ux_details">Подробности подключения</string>
+    <string name="most_ux_hide_details">Скрыть подробности</string>
+    <string name="most_ux_tools">Дополнительные инструменты</string>
+    <string name="most_ux_delete">Удалить</string>
+    <string name="most_ux_delete_subscription">Удалить подписку?</string>
+    <string name="most_ux_delete_confirm">Подписка и её подключения будут удалены с устройства. Её можно добавить снова по ссылке.</string>
+    <string name="most_ux_stop_before_delete">Отключите VPN перед удалением подписки.</string>
+    <string name="most_ux_edit">Редактировать подключение</string>
+    <string name="most_ux_copy_link">Скопировать ссылку</string>
+</resources>

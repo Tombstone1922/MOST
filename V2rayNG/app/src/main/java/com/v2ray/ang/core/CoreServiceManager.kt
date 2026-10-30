@@ -149,7 +149,9 @@ object CoreServiceManager {
      * `registerReceiver(Context, BroadcastReceiver, IntentFilter, int)`.
      * Starts the V2Ray core service.
      */
-    fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean {
+    private var preparedRulesKey: String = ""
+
+    fun startCoreLoop(vpnInterface: ParcelFileDescriptor?, rulesKey: String? = null): Boolean {
         if (isRunning()) {
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core already running")
             return false
@@ -162,6 +164,7 @@ object CoreServiceManager {
         }
 
         try {
+            preparedRulesKey = rulesKey ?: SettingsManager.mostRuleFingerprint()
             mostLifecycleEpoch++
             doStartCoreLoop(service, vpnInterface)
             return true
@@ -248,6 +251,7 @@ object CoreServiceManager {
         }
 
         if (!isReload) {
+            SettingsManager.acknowledgeMostRules(preparedRulesKey)
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
         }
         mostActiveGuid = guid

@@ -14,8 +14,8 @@
     <string name="most_apps_selected_count">Выбрано: %1$d</string>
     <string name="most_apps_selected_filter">Выбранные</string>
     <string name="most_apps_system_filter">Системные</string>
-    <string name="most_apps_apply">Применить</string>
-    <string name="most_apps_apply_hint">При выходе активный VPN переподключится с новым выбором.</string>
+    <string name="most_apps_apply">Применить и переподключить</string>
+    <string name="most_apps_apply_hint">Нажмите кнопку, чтобы применить выбор. При обычном возврате изменения сохранятся для следующего подключения.</string>
     <string name="most_apps_vpn">Через VPN</string>
     <string name="most_apps_direct">Напрямую</string>
     <string name="most_apps_empty_only">Пока ничего не выбрано — приложения будут работать без VPN.</string>

@@ -65,6 +65,7 @@ Check(SiteRouting.Parse("HTTPS://Example.RU/account\n*.example.ru\nпример.
 foreach (var invalid in new[] { "127.0.0.1", "localhost", "domain:ru", "regexp:.*", "a..ru", "https://user:pass@example.ru", "https://[::1]", "ftp://example.ru" })
     Reject(() => SiteRouting.Parse(invalid), "invalid site rule rejected");
 Check(SiteRouting.Parse("\n  \n").Count == 0, "empty site list accepted");
+Check(previousState.ConnectionSettingsRevision == 0, "0.2.1 states preserve default settings revision");
 Check(!previousState.SiteRouting.Active, "0.2.0 settings keep site rules disabled");
 var siteState = Storage.Clone(state);
 siteState.SiteRouting = new SiteRouting { RuDirect = true, RfDirect = true, SuDirect = true, DirectDomains = { "bank.example" }, ProxyDomains = { "keep.ru" } };
@@ -81,6 +82,13 @@ Check(SiteRoute("bank.example") == "direct" && SiteRoute("пример.xn--p1ai"
 Check(siteRules[0]!["outboundTag"]!.GetValue<string>() == "proxy" && siteRules[1]?["process"] != null, "diagnostics and whole-app exclusions retain priority");
 Check(siteConfig["inbounds"]![0]?["sniffing"] == null && siteConfig["inbounds"]![1]!["sniffing"]!["routeOnly"]!.GetValue<bool>(), "domain detection excludes diagnostic inbound");
 Check(siteRules.Any(r => r?["inboundTag"]?.AsArray().Any(t => t?.GetValue<string>() == "most-sites-bootstrap") == true && r?["outboundTag"]?.GetValue<string>() == "direct"), "VPN endpoint DNS bootstraps outside its own tunnel");
+var manualKey = AppModel.SelectionKey(state);
+var changedView = Storage.Clone(state); changedView.GroupFilter = "other";
+Check(AppModel.SelectionKey(changedView) == manualKey, "browsing filters does not change selected connection");
+changedView.AutoCountry = true; changedView.AutoGroupId = "family"; changedView.AutoCountryCode = "de";
+var autoKey = AppModel.SelectionKey(changedView); changedView.SelectedId = profiles[2].Id;
+Check(AppModel.SelectionKey(changedView) == autoKey, "automatic fallback does not look like an unapplied user route");
+changedView.AutoDirect = true; Check(AppModel.SelectionKey(changedView) != autoKey, "route type change requires application");
 var sourceConfig = ConfigBuilder.Build(profiles[1], state, 16810, 16811, false);
 sourceConfig["routing"] = new JsonObject { ["script"] = "must-not-run.lua" };
 sourceConfig["outbounds"]![0]!["streamSettings"]!["sockopt"] = new JsonObject { ["dialerProxy"] = "untrusted" };

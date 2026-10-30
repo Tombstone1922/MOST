@@ -82,12 +82,15 @@ class MainActivity : HelperBaseComponentActivity() {
         }
 
     private val settingsActivityLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val restartService = SettingsChangeManager.consumeRestartService()
             val refreshGroups = SettingsChangeManager.consumeSetupGroupTab()
             mainViewModel.refreshUiSettings()
             if (refreshGroups) mainViewModel.onAction(MainAction.RefreshGroups)
-            if (restartService) LauncherManager.restartService(this)
+            val rulesEditor = result.data?.getBooleanExtra(SettingsChangeManager.EXTRA_RULES_EDITOR, false) == true
+            val apply = result.data?.getBooleanExtra(SettingsChangeManager.EXTRA_APPLY_RULES, false) == true
+            if (apply) applyRules()
+            else if (restartService && !rulesEditor) LauncherManager.restartService(this)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,6 +103,7 @@ class MainActivity : HelperBaseComponentActivity() {
     override fun onResume() {
         super.onResume()
         mainViewModel.onAction(MainAction.CheckAppUpdates)
+        mainViewModel.refreshRuleState()
     }
 
     @Composable
@@ -116,6 +120,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     MainAction.PasteMostImport -> mainViewModel.onAction(MainAction.OpenImport(Utils.getClipboard(this)))
                     MainAction.ImportConfigLocal -> importConfigLocal()
                     is MainAction.ImportManually -> importManually(action.type)
+                    MainAction.ApplyRules -> applyRules()
                     MainAction.RestartService -> LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
                     MainAction.LocateSelectedServer -> mainViewModel.triggerLocateSelectedServer()
                     is MainAction.SelectServer -> setSelectServer(action.guid)
@@ -163,6 +168,11 @@ class MainActivity : HelperBaseComponentActivity() {
             }
         }
         settingsActivityLauncher.launch(intent)
+    }
+
+    private fun applyRules() {
+        mainViewModel.onAction(MainAction.BeginRulesApply)
+        LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
     }
 
     private fun handleFabAction() {

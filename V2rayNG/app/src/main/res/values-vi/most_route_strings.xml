@@ -28,7 +28,7 @@
     <string name="most_route_server_unavailable_title">Connection unavailable</string>
     <string name="most_route_none_title">No working connection</string>
     <string name="most_route_wrong_country_title">Unexpected exit country</string>
-    <string name="most_route_direct">Direct connections</string>
+    <string name="most_route_direct">Without Moscow bridge</string>
     <string name="most_route_bridge">Bridge connections</string>
-    <string name="most_route_direct_hint">Checked: direct only. Unchecked: bridges only. Then choose a country.</string>
+    <string name="most_route_direct_hint">Checked: VPN directly to the server. Unchecked: VPN through the Moscow bridge.</string>
 </resources>

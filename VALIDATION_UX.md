@@ -1,0 +1,11 @@
+# UX release validation
+
+Windows 0.3.0 / Android 0.5.0. Native libraries, transport protocols, credentials and subscription identities are unchanged.
+
+Windows: five primary destinations, grouped application/site rules and secondary log/update destinations; adaptive dashboard; one main power action; visible search labels; retained modal import with contextual HTTP consent, progress, cancellation and inline retry; selection-only updates preserve the server list instance; persisted settings revision distinguishes saved rules from the live session. Applying pending rules or a selected direction replaces the connection using the existing controller.
+
+Android: consolidated connection status and expandable diagnostics; adaptive country cards; server secondary actions in an overflow; subscription rename/update/delete in place (deletion requires VPN off and confirmation); no switch into the alternate full-screen UI; grouped settings; standard mint brand theme with dynamic colors retained. Rule fingerprint covers site preferences and application selection. The VPN service captures the prepared fingerprint before interface settings; the common daemon acknowledges it only after successful initial native startup. Native reloads do not mark interface changes applied. Failed starts retain pending status. Explicit apply returns to the main permission-aware LauncherManager path; ordinary return from rules editors retains changes for a later connection. Generic settings retain their previous restart behavior.
+
+Targeted CI: existing import/config/DPAPI tests, persisted state compatibility, route-selection identity, Android rules fingerprint comparison, rule-editor unsaved/apply behavior, main pending-state refresh, existing import ViewModel regression tests, and packaging both platforms.
+
+Not run: actual WPF appearance/layout/DPI/keyboard/focus and import retry interaction; Android light/dark/dynamic palettes, touch/TalkBack/D-pad, large text/landscape and IME interactions, activity recreation/process death; real VPN/proxy/root apply/restart success/failure and stop racing restart, per-app exclusions and site routing, installer/OTA handoff. No emulator or broad runtime campaign was run, following the user's build-focused validation preference. Compilation and pure tests are not runtime verification.

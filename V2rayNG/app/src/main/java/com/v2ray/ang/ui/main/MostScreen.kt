@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
@@ -37,22 +38,20 @@ internal fun MostScreen(
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
 ) {
-    var advanced by rememberSaveable { mutableStateOf(false) }
+    var technicalExpanded by rememberSaveable { mutableStateOf(false) }
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
+    var deleteGuid by rememberSaveable { mutableStateOf<String?>(null) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var favoritesOnly by rememberSaveable { mutableStateOf(false) }
     var showConnections by rememberSaveable { mutableStateOf(false) }
     var renameGuid by rememberSaveable { mutableStateOf<String?>(null) }
     var renameDraft by rememberSaveable { mutableStateOf("") }
-    if (advanced) {
-        MainScreen(mainViewModel, onAction, onNavigate)
-        BackHandler { advanced = false }
-        return
-    }
     BackHandler(enabled = tab != 0) { tab = 0 }
     val state by mainViewModel.uiState.collectAsStateWithLifecycle()
     val group by mainViewModel.serverGroupState(state.selectedGroupId).collectAsStateWithLifecycle()
     val loading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val rows = if (favoritesOnly) group.rows.filter { it.guid in state.favoriteGuids } else group.rows
+    val countryMinWidth = (158 * LocalDensity.current.fontScale.coerceAtLeast(1f)).dp
     val titles = listOf(R.string.most_home, R.string.most_servers, R.string.most_subscriptions, R.string.most_settings)
     val icons = listOf(R.drawable.ic_most_power, R.drawable.ic_most_servers, R.drawable.ic_subscriptions_24dp, R.drawable.ic_settings_24dp)
     Scaffold(
@@ -70,7 +69,7 @@ internal fun MostScreen(
         }
     ) { padding ->
         LazyVerticalGrid(
-            columns = GridCells.Fixed(if (tab == 1 && (!showConnections || state.doubleColumnDisplay)) 2 else 1),
+            columns = if (tab == 1 && (!showConnections || state.doubleColumnDisplay)) GridCells.Adaptive(countryMinWidth) else GridCells.Fixed(1),
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
             contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -95,119 +94,86 @@ internal fun MostScreen(
                     if (state.appUpdateAvailable) item(span = { GridItemSpan(maxLineSpan) }) {
                         MostLink(R.string.most_ota_banner, R.drawable.ic_check_update_24dp, { onNavigate(MainDestination.CheckUpdate) })
                     }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Column(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp))
-                                .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface)))
-                                .padding(22.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(if (state.isRunning) mostHealthLabel(state.health?.state) else R.string.most_ready),
-                                        style = MaterialTheme.typography.titleLarge)
-                                    Text(stringResource(if (state.isRunning) R.string.most_disconnect else R.string.most_connect),
-                                        style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    if (state.rulesPending && state.isRunning) item(span = { GridItemSpan(maxLineSpan) }) {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(stringResource(R.string.most_ux_pending), style = MaterialTheme.typography.titleSmall)
+                                Button(onClick = { onAction(MainAction.ApplyRules) }, enabled = !state.rulesApplying && !state.routeBusy) {
+                                    Text(stringResource(if (state.rulesApplying) R.string.most_ux_applying else R.string.most_ux_apply))
                                 }
-                                val action = stringResource(if (state.isRunning) R.string.most_disconnect else R.string.most_connect)
-                                Surface(
-                                    onClick = { onAction(MainAction.ToggleService) },
-                                    enabled = state.isRunning || (state.selectedGuid != null && !state.routeBusy),
-                                    modifier = Modifier.size(88.dp).semantics { contentDescription = action; role = Role.Button },
-                                    shape = CircleShape,
-                                    color = if (state.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = if (state.isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                                    shadowElevation = if (state.isRunning) 8.dp else 0.dp,
-                                ) { Box(contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.ic_most_power), null, Modifier.size(38.dp)) } }
                             }
-                            Text(mainViewModel.formatStatus(state.status), style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        MostLink(R.string.most_apps_title, R.drawable.ic_per_apps_24dp, { onNavigate(MainDestination.PerAppProxy) })
-                    }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(stringResource(R.string.most_selected), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val health = state.health
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                            .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface)))
+                            .padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(stringResource(if (state.isRunning) mostHealthLabel(health?.state) else R.string.most_ready),
+                                style = MaterialTheme.typography.headlineSmall)
+                            val action = stringResource(if (state.isRunning) R.string.most_disconnect else R.string.most_connect)
+                            Surface(onClick = { onAction(MainAction.ToggleService) },
+                                enabled = state.isRunning || (state.selectedGuid != null && !state.routeBusy && !state.rulesApplying),
+                                modifier = Modifier.size(104.dp).semantics { contentDescription = action; role = Role.Button }, shape = CircleShape,
+                                color = if (state.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = if (state.isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary) {
+                                Box(contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.ic_most_power), null, Modifier.size(42.dp)) }
+                            }
+                            Text(action, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            if (state.isRunning && !health?.ip.isNullOrBlank()) {
+                                val exit = health!!.country.takeIf { it.isNotBlank() }?.let { java.util.Locale.forLanguageTag("und-$it").displayCountry }.orEmpty()
+                                Text(listOf(exit, health.ip).filter(String::isNotBlank).joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (state.isRunning) mostHealthDetail(health?.state)?.let {
+                                Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (state.isRunning && health?.state == com.v2ray.ang.dto.MostLinkState.RECOVERING && health.total > 0)
+                                Text(stringResource(R.string.most_route_attempt, health.attempt, health.total))
+                            if (state.selectedGuid == null) Button(onClick = { onAction(MainAction.OpenImport()) }) { Text(stringResource(R.string.most_import_title)) }
+                        }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         val profile = state.selectedProfile
                         Card(onClick = { tab = 1 }, shape = RoundedCornerShape(22.dp)) {
-                            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(if (state.mostRoute.enabled) routeCountryName(state.mostRoute.country)
-                                    else profile?.let { countryName(it) } ?: stringResource(R.string.most_choose),
-                                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                if (state.mostRoute.enabled) {
-                                    Text(stringResource(R.string.most_route_auto), color = MaterialTheme.colorScheme.primary)
-                                    Text(stringResource(if (state.mostRoute.directOnly) R.string.most_route_direct else R.string.most_route_bridge),
-                                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                                    Text(stringResource(R.string.most_route_scope), style = MaterialTheme.typography.bodySmall)
-                                } else if (profile != null) {
-                                    Text(profile.remarks, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                    Text(routeName(profile), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                                } else Text(stringResource(R.string.most_first_subscription), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(stringResource(R.string.most_ux_connection), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (state.mostRoute.enabled) routeCountryName(state.mostRoute.country) else profile?.let { countryName(it) } ?: stringResource(R.string.most_choose),
+                                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                    Text(if (state.mostRoute.enabled) stringResource(if (state.mostRoute.directOnly) R.string.most_direct else R.string.most_bridge) else profile?.let { routeName(it) }.orEmpty(),
+                                        style = MaterialTheme.typography.bodyMedium)
+                                }
+                                Icon(painterResource(R.drawable.ic_expand_more_24dp), null)
                             }
                         }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(onClick = { tab = 1 }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.most_choose)) }
-                            OutlinedButton(onClick = { onAction(MainAction.TestCurrentServer) }, enabled = state.isRunning && !state.isTesting, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.most_test)) }
-                        }
+                        MostLink(R.string.most_ux_rules, R.drawable.ic_routing_24dp, { tab = 3 })
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                if (state.isRunning) {
-                                    val health = state.health
-                                    Text(stringResource(mostHealthLabel(health?.state)), style = MaterialTheme.typography.titleMedium,
-                                        color = if (health?.state in listOf(com.v2ray.ang.dto.MostLinkState.NO_ROUTE,
-                                            com.v2ray.ang.dto.MostLinkState.SERVER_UNAVAILABLE, com.v2ray.ang.dto.MostLinkState.WRONG_COUNTRY))
-                                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                                    if (health?.state == com.v2ray.ang.dto.MostLinkState.RECOVERING && health.total > 0)
-                                        Text(stringResource(R.string.most_route_attempt, health.attempt, health.total))
-                                    mostHealthDetail(health?.state)?.let { Text(stringResource(it), style = MaterialTheme.typography.bodyMedium) }
-                                    if (!health?.ip.isNullOrBlank()) {
-                                        Text(stringResource(R.string.most_exit_ip, health!!.ip))
-                                        if (health.country.isNotBlank()) Text(stringResource(R.string.most_exit_country,
-                                            java.util.Locale.forLanguageTag("und-" + health.country).displayCountry))
-                                    } else if (health?.state == com.v2ray.ang.dto.MostLinkState.ONLINE) Text(stringResource(R.string.most_exit_unknown))
-                                    TextButton(onClick = { onAction(MainAction.RefreshConnectionHealth) }) {
-                                        Text(stringResource(if (health?.state in listOf(com.v2ray.ang.dto.MostLinkState.NO_ROUTE,
-                                            com.v2ray.ang.dto.MostLinkState.SERVER_UNAVAILABLE, com.v2ray.ang.dto.MostLinkState.NO_INTERNET))
-                                            R.string.most_route_retry else R.string.most_health_refresh))
-                                    }
-                                    if (health?.state == com.v2ray.ang.dto.MostLinkState.NO_ROUTE)
-                                        TextButton(onClick = { onAction(MainAction.UpdateSubscriptions) }, enabled = !loading) { Text(stringResource(R.string.most_refresh)) }
-                                }
-                                if (state.mostRoute.enabled) Text(stringResource(R.string.most_route_auto_hint),
-                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                else {
-                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(stringResource(R.string.most_auto_recovery), Modifier.weight(1f))
-                                        Switch(checked = state.autoRecovery, onCheckedChange = { onAction(MainAction.SetAutoRecovery(it)) })
-                                    }
-                                    Text(stringResource(if (state.backupGuid.isBlank()) R.string.most_backup_hint else R.string.most_backup_configured),
-                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = { detailsExpanded = !detailsExpanded }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(if (detailsExpanded) R.string.most_ux_hide_details else R.string.most_ux_details))
+                        }
+                        if (detailsExpanded) Card {
+                            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                state.selectedProfile?.let { Text(it.remarks, style = MaterialTheme.typography.bodyMedium) }
+                                if (state.mostRoute.enabled) Text(stringResource(R.string.most_route_auto_hint), style = MaterialTheme.typography.bodySmall)
+                                Text(mainViewModel.formatStatus(state.status), style = MaterialTheme.typography.bodyMedium)
+                                if ((state.health?.latencyMs ?: 0) > 0) Text(stringResource(R.string.most_delay, state.health!!.latencyMs))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(onClick = { onAction(MainAction.TestCurrentServer) }, enabled = state.isRunning && !state.isTesting) { Text(stringResource(R.string.most_test)) }
+                                    TextButton(onClick = { onAction(MainAction.RefreshConnectionHealth) }, enabled = state.isRunning) { Text(stringResource(R.string.most_health_refresh)) }
                                 }
                             }
                         }
                     }
                     state.connectionFailure?.let { message -> item(span = { GridItemSpan(maxLineSpan) }) {
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(stringResource(message))
-                                TextButton(onClick = { tab = 1 }) { Text(stringResource(R.string.most_choose)) }
+                            Column(Modifier.padding(18.dp)) {
+                                Text(stringResource(message)); TextButton(onClick = { tab = 1 }) { Text(stringResource(R.string.most_choose)) }
                             }
                         }
                     } }
-                    if (state.subscriptionFailure != null) item(span = { GridItemSpan(maxLineSpan) }) {
-                        MostLink(R.string.most_route_subscription_attention, R.drawable.ic_subscriptions_24dp, { tab = 2 })
-                    }
-                    if (state.selectedGuid == null) item(span = { GridItemSpan(maxLineSpan) }) {
-                        Button(onClick = { onAction(MainAction.OpenImport()) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_import_title)) }
-                    }
                 }
                 1 -> {
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -291,7 +257,7 @@ internal fun MostScreen(
                             MostServerRow(row, row.guid == state.selectedGuid, row.guid in state.favoriteGuids, row.guid == state.backupGuid, onAction)
                         }
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            TextButton(onClick = { onAction(MainAction.Search("")); advanced = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_advanced)) }
+                            TextButton(onClick = { tab = 3; technicalExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_ux_tools)) }
                         }
                     }
                 }
@@ -308,7 +274,7 @@ internal fun MostScreen(
                         }
                     } }
                     item { Button(onClick = { onAction(MainAction.OpenImport()) }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_import_title)) } }
-                    item { OutlinedButton(onClick = { onAction(MainAction.UpdateSubscriptions) }, enabled = !loading, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_refresh)) } }
+
                     if (state.subscriptions.isEmpty()) item {
                         Text(stringResource(R.string.most_subscriptions_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -322,8 +288,15 @@ internal fun MostScreen(
                                         Text(stringResource(if (item.source.isBlank()) R.string.most_local_profiles_hint else R.string.most_subscription_source,
                                             item.source), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    if (item.source.isNotBlank()) IconButton(onClick = { renameGuid = item.guid; renameDraft = item.title }) {
-                                        Icon(painterResource(R.drawable.ic_edit_24dp), stringResource(R.string.most_subscription_rename))
+                                    if (item.source.isNotBlank()) {
+                                        var menu by rememberSaveable(item.guid) { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(onClick = { menu = true }) { Icon(painterResource(R.drawable.ic_more_vert_24dp), stringResource(R.string.acc_more)) }
+                                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                                DropdownMenuItem(text = { Text(stringResource(R.string.most_subscription_rename)) }, onClick = { menu = false; renameGuid = item.guid; renameDraft = item.title })
+                                                DropdownMenuItem(text = { Text(stringResource(R.string.most_ux_delete)) }, onClick = { menu = false; deleteGuid = item.guid })
+                                            }
+                                        }
                                     }
                                 }
                                 Text(stringResource(R.string.most_subscription_servers, item.serverCount),
@@ -346,23 +319,38 @@ internal fun MostScreen(
                     }
                     item { MostLink(R.string.most_clipboard, R.drawable.ic_copy, { onAction(MainAction.PasteMostImport) }) }
                     item { MostLink(R.string.most_qr, R.drawable.ic_scan_24dp, { onAction(MainAction.ImportQRcode) }) }
-                    item { MostLink(R.string.most_manage_subscriptions, R.drawable.ic_edit_24dp, { onNavigate(MainDestination.Subscriptions) }) }
+
                 }
                 3 -> {
                     item { Text(stringResource(R.string.most_settings), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+                    item { Text(stringResource(R.string.most_ux_rules), style = MaterialTheme.typography.titleMedium) }
                     item { MostLink(R.string.most_sites_title, R.drawable.ic_routing_24dp, { onNavigate(MainDestination.SiteRouting) }) }
-                    item { MostLink(R.string.most_preferences, R.drawable.ic_settings_24dp, { onNavigate(MainDestination.Settings) }) }
                     item { MostLink(R.string.most_apps_title, R.drawable.ic_per_apps_24dp, { onNavigate(MainDestination.PerAppProxy) }) }
-                    item { MostLink(R.string.most_routing, R.drawable.ic_routing_24dp, { onNavigate(MainDestination.Routing) }) }
-                    item { MostLink(R.string.most_backup, R.drawable.ic_backup_24dp, { onNavigate(MainDestination.BackupRestore) }) }
-                    item { MostLink(R.string.most_logs, R.drawable.ic_logcat_24dp, { onNavigate(MainDestination.Logcat) }) }
+                    if (!state.mostRoute.enabled) item {
+                        Row(Modifier.fillMaxWidth().toggleable(value = state.autoRecovery, role = Role.Switch,
+                            onValueChange = { onAction(MainAction.SetAutoRecovery(it)) }).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.most_auto_recovery), Modifier.weight(1f)); Switch(checked = state.autoRecovery, onCheckedChange = null)
+                        }
+                    }
                     item { MostLink(R.string.most_ota_title, R.drawable.ic_check_update_24dp, { onNavigate(MainDestination.CheckUpdate) }) }
+                    item { MostLink(R.string.most_preferences, R.drawable.ic_settings_24dp, { onNavigate(MainDestination.Settings) }) }
                     item { MostLink(R.string.most_about, R.drawable.ic_about_24dp, { onNavigate(MainDestination.About) }) }
-                    item { Text(stringResource(R.string.most_privacy), Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+                    item { TextButton(onClick = { technicalExpanded = !technicalExpanded }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_ux_tools)) } }
+                    if (technicalExpanded) {
+                        item { MostLink(R.string.most_routing, R.drawable.ic_routing_24dp, { onNavigate(MainDestination.Routing) }) }
+                        item { MostLink(R.string.most_backup, R.drawable.ic_backup_24dp, { onNavigate(MainDestination.BackupRestore) }) }
+                        item { MostLink(R.string.most_logs, R.drawable.ic_logcat_24dp, { onNavigate(MainDestination.Logcat) }) }
+                        item { MostLink(R.string.title_user_asset_setting, R.drawable.ic_file_24dp, { onNavigate(MainDestination.UserAssets) }) }
+                    }
                 }
             }
         }
     }
+    if (deleteGuid != null) AlertDialog(onDismissRequest = { deleteGuid = null },
+        title = { Text(stringResource(R.string.most_ux_delete_subscription)) },
+        text = { Text(stringResource(R.string.most_ux_delete_confirm)) },
+        confirmButton = { TextButton(onClick = { deleteGuid?.let { onAction(MainAction.DeleteSubscription(it)) }; deleteGuid = null }) { Text(stringResource(R.string.most_ux_delete)) } },
+        dismissButton = { TextButton(onClick = { deleteGuid = null }) { Text(stringResource(R.string.most_cancel)) } })
     if (renameGuid != null) AlertDialog(
         onDismissRequest = { renameGuid = null },
         title = { Text(stringResource(R.string.most_subscription_rename)) },
@@ -387,38 +375,30 @@ internal fun MostScreen(
 
 @Composable
 private fun MostServerRow(row: ServerRowUiModel, selected: Boolean, favorite: Boolean, backup: Boolean, onAction: (MainAction) -> Unit) {
-    val name = countryName(row.profile)
-    Card(
-        onClick = { onAction(MainAction.SelectServer(row.guid)) },
-        modifier = Modifier.fillMaxWidth().semantics { this.selected = selected },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer),
-    ) {
+    var menu by rememberSaveable(row.guid) { mutableStateOf(false) }
+    Card(onClick = { onAction(MainAction.SelectServer(row.guid)) }, modifier = Modifier.fillMaxWidth().semantics { this.selected = selected },
+        shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(routeName(row.profile), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(countryName(row.profile), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(routeName(row.profile), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
                 IconToggleButton(checked = favorite, onCheckedChange = { onAction(MainAction.ToggleFavorite(row.guid)) }) {
                     Icon(painterResource(if (favorite) R.drawable.ic_most_star_filled else R.drawable.ic_most_star), stringResource(if (favorite) R.string.most_unfavorite else R.string.most_favorite))
                 }
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(painterResource(R.drawable.ic_more_vert_24dp), stringResource(R.string.acc_more)) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(if (backup) R.string.most_backup_selected else R.string.most_backup_choose)) }, onClick = { menu = false; onAction(MainAction.SetBackup(row.guid)) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.most_ux_edit)) }, onClick = { menu = false; onAction(MainAction.EditServer(row.guid, row.profile)) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.most_ux_copy_link)) }, onClick = { menu = false; onAction(MainAction.ShareClipboard(row.guid)) })
+                    }
+                }
             }
-            FilterChip(selected = backup, onClick = { onAction(MainAction.SetBackup(row.guid)) },
-                label = { Text(stringResource(if (backup) R.string.most_backup_selected else R.string.most_backup_choose)) })
-            Text(row.remarks, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(row.profile.network.orEmpty().uppercase(), style = MaterialTheme.typography.labelSmall)
-                Text(
-                    when {
-                        row.testDelayMillis > 0 -> stringResource(R.string.most_delay, row.testDelayMillis)
-                        row.testDelayMillis < 0 -> stringResource(R.string.most_unavailable)
-                        else -> stringResource(R.string.most_untested)
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (row.testDelayMillis < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(row.remarks, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(when { row.testDelayMillis > 0 -> stringResource(R.string.most_delay, row.testDelayMillis); row.testDelayMillis < 0 -> stringResource(R.string.most_unavailable); else -> stringResource(R.string.most_untested) },
+                style = MaterialTheme.typography.bodySmall, color = if (row.testDelayMillis < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -67,6 +67,17 @@ class MostImportViewModelTest {
     private fun text(text: String) {
         model.onAction(MainAction.OpenImport(text));dispatcher.scheduler.advanceUntilIdle()
     }
+    @Test fun pendingRulesReflectRepositoryAndFailedDeletionDoesNotRemoveUiRows() {
+        whenever(data.hasPendingRules()).thenReturn(true)
+        model.refreshRuleState(); dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(model.uiState.value.rulesPending)
+        whenever(data.hasPendingRules()).thenReturn(false)
+        model.refreshRuleState(); dispatcher.scheduler.advanceUntilIdle()
+        assertFalse(model.uiState.value.rulesPending)
+        whenever(data.deleteSubscription("missing")).thenReturn(false)
+        model.onAction(MainAction.DeleteSubscription("missing")); dispatcher.scheduler.advanceUntilIdle()
+        verify(data).deleteSubscription("missing")
+    }
     @Test fun initialEmptyAndInvalidStatesDisableImport() {
         assertFalse(model.uiState.value.importOpen);assertFalse(model.uiState.value.canImport)
         text("");assertEquals(ImportTextIssue.EMPTY,model.uiState.value.importPreview.issue)

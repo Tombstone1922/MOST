@@ -16,6 +16,7 @@ interface MainDataSource : Closeable {
     fun getMostRouteCandidates(groupId: String): List<com.v2ray.ang.core.MostRouteCandidate> = emptyList()
     fun getMostLastRoute(selection: com.v2ray.ang.core.MostRouteSelection): String = ""
     fun setMostRouteSelection(selection: com.v2ray.ang.core.MostRouteSelection) { setSelectServer(selection.preferredGuid) }
+    fun hasPendingRules(): Boolean = false
     fun getAutoRecovery(): Boolean = true
     fun setAutoRecovery(value: Boolean) {}
     fun getBackupGuid(): String = ""
@@ -41,6 +42,7 @@ interface MainDataSource : Closeable {
     fun getString(resId: Int, vararg formatArgs: Any): String
 
     fun getSubscriptions(): List<SubscriptionCache>
+    fun deleteSubscription(id: String): Boolean = false
     fun renameSubscription(id: String, name: String): Boolean = false
     fun getSubscriptionItem(id: String): SubscriptionItem?
 

@@ -3,7 +3,7 @@
     <string name="most_tagline">Связь без границ</string>
     <string name="most_connect">Подключить</string>
     <string name="most_disconnect">Отключить</string>
-    <string name="most_servers">Серверы</string>
+    <string name="most_servers">Подключения</string>
     <string name="most_subscriptions">Подписки</string>
     <string name="most_settings">Настройки</string>
     <string name="most_add">Добавить</string>
@@ -50,7 +50,7 @@
     <string name="most_msk">Москва</string>
     <string name="most_server">Сервер</string>
     <string name="most_bridge">Через Москву</string>
-    <string name="most_direct">Прямое подключение</string>
+    <string name="most_direct">Без моста</string>
     <string name="most_my_subscription">Моя подписка</string>
     <string name="most_invalid_url">Введи HTTPS-ссылку или явно разреши HTTP.</string>
     <string name="most_imported">Серверы загружены</string>

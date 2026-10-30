@@ -35,6 +35,18 @@ import kotlin.random.Random
 
 object SettingsManager {
 
+    fun mostRuleFingerprint(): String = com.v2ray.ang.core.MostRulePreferences.fingerprint(
+        JsonUtil.toJson(getMostSiteRouting()), MmkvManager.decodeSettingsBool(AppConfig.PREF_PER_APP_PROXY),
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_BYPASS_APPS), MmkvManager.decodeSettingsStringSet(AppConfig.PREF_PER_APP_PROXY_SET)?.toSet().orEmpty())
+
+    fun hasPendingMostRules(): Boolean = com.v2ray.ang.core.MostRulePreferences.pending(mostRuleFingerprint(),
+        MmkvManager.decodeSettingsString("most_rules_applied"), com.v2ray.ang.core.MostRulePreferences.fingerprint(
+            JsonUtil.toJson(com.v2ray.ang.core.MostSiteRouting()), false, false, emptySet()))
+
+    fun acknowledgeMostRules(key: String) {
+        if (!MmkvManager.encodeSettings("most_rules_applied", key)) LogUtil.w(AppConfig.TAG, "MOST rules acknowledgement write failed: component=core-start")
+    }
+
     fun getMostSiteRouting(): com.v2ray.ang.core.MostSiteRouting {
         val raw = MmkvManager.decodeSettingsString("most_site_routing_v1") ?: return com.v2ray.ang.core.MostSiteRouting()
         return JsonUtil.fromJson(raw, com.v2ray.ang.core.MostSiteRouting::class.java)

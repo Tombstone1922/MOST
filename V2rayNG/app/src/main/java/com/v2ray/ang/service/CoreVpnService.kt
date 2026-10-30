@@ -101,12 +101,14 @@ class CoreVpnService : VpnService(), ServiceControl {
         return this
     }
 
+    private var preparedRulesKey: String? = null
+
     override fun startService() {
         if (!::mInterface.isInitialized) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Interface not initialized")
             return
         }
-        if (!CoreServiceManager.startCoreLoop(mInterface)) {
+        if (!CoreServiceManager.startCoreLoop(mInterface, preparedRulesKey)) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
             stopAllService()
             return
@@ -158,6 +160,7 @@ class CoreVpnService : VpnService(), ServiceControl {
      * @return True if the VPN service was configured successfully, false otherwise.
      */
     private fun configureVpnService(): Boolean {
+        preparedRulesKey = SettingsManager.mostRuleFingerprint()
         val builder = Builder()
 
         // Configure network settings (addresses, routing and DNS)

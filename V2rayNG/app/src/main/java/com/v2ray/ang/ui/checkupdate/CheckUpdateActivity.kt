@@ -51,6 +51,7 @@ class CheckUpdateActivity : BaseComponentActivity() {
     @Composable override fun ScreenContent() {
         val state by viewModel.state.collectAsStateWithLifecycle()
         var repo by rememberSaveable(state.repo) { mutableStateOf(state.repo) }
+        var advanced by rememberSaveable { mutableStateOf(false) }
         val busy = state.stage == MostUpdateStage.CHECKING || state.stage == MostUpdateStage.DOWNLOADING
         Scaffold(contentWindowInsets = WindowInsets(0), topBar = { AppTopBar(title = stringResource(R.string.most_ota_title), onBackClick = { finish() }, isLoading = busy) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).verticalScroll(rememberScrollState()).imePadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -90,9 +91,12 @@ class CheckUpdateActivity : BaseComponentActivity() {
                     else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
                     startActivity(intent)
                 }) { Text(stringResource(R.string.most_ota_notification_settings)) }
-                OutlinedTextField(value = repo, onValueChange = { repo = it }, enabled = !busy, singleLine = true,
-                    label = { Text(stringResource(R.string.most_ota_repo)) }, modifier = Modifier.fillMaxWidth())
-                TextButton(onClick = { viewModel.saveRepository(repo) }, enabled = !busy) { Text(stringResource(R.string.most_ota_save_repo)) }
+                TextButton(onClick = { advanced = !advanced }) { Text(stringResource(R.string.most_ux_tools)) }
+                if (advanced) {
+                    OutlinedTextField(value = repo, onValueChange = { repo = it }, enabled = !busy, singleLine = true,
+                        label = { Text(stringResource(R.string.most_ota_repo)) }, modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = { viewModel.saveRepository(repo) }, enabled = !busy) { Text(stringResource(R.string.most_ota_save_repo)) }
+                }
             }
         }
     }

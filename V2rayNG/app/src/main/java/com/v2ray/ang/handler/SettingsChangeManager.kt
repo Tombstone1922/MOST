@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Uses AtomicBoolean for thread-safe consume operations.
  */
 object SettingsChangeManager {
+    const val EXTRA_RULES_EDITOR = "most_rules_editor"
+    const val EXTRA_APPLY_RULES = "most_apply_rules"
 
     private val restartService = AtomicBoolean(false)
     private val setupGroupTab = AtomicBoolean(false)

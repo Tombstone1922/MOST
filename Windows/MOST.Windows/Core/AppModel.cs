@@ -10,7 +10,7 @@ namespace Most.Windows.Core;
 /// Owns durable desktop state and subscription transactions; views only dispatch actions.
 public sealed class AppModel
 {
-    public const string Version = "0.2.1";
+    public const string Version = "0.3.0";
     private readonly Storage _storage = new();
     private readonly SemaphoreSlim _data = new(1, 1);
     public bool Initialized { get; private set; }
@@ -18,6 +18,13 @@ public sealed class AppModel
     public ConnectionController Connection { get; } = new();
     private CancellationTokenSource? _routeSession;
     private Task? _recovery;
+    private long? _appliedSettingsRevision;
+    private string? _appliedSelection;
+    public bool RulesPending => Connection.HasSession && _appliedSettingsRevision.HasValue && _appliedSettingsRevision != State.ConnectionSettingsRevision;
+    public bool RoutePending => Connection.Status.Active && _appliedSelection != null && _appliedSelection != SelectionKey(State);
+    public static string SelectionKey(AppState state) => state.AutoCountry
+        ? $"auto:{state.AutoGroupId}:{state.AutoCountryCode}:{state.AutoDirect}"
+        : "manual:" + state.SelectedId;
     public UpdateManager Updates { get; } = new();
     public event Action? Changed;
     public async Task InitializeAsync(CancellationToken ct)
@@ -73,9 +80,10 @@ public sealed class AppModel
     public async Task FiltersAsync(string group, string country, bool direct, CancellationToken ct) =>
         await EditAsync(s => { s.GroupFilter = group; s.CountryFilter = country; s.DirectRoutes = direct; }, ct);
     public async Task SaveSettingsAsync(bool tun, IEnumerable<string> excluded, CancellationToken ct) => await EditAsync(s => {
-        s.TunMode = tun;
-        s.ExcludedApps = excluded.Where(p => Path.IsPathFullyQualified(p) && p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        var paths = excluded.Where(p => Path.IsPathFullyQualified(p) && p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (s.TunMode != tun || !s.ExcludedApps.SequenceEqual(paths, StringComparer.OrdinalIgnoreCase)) s.ConnectionSettingsRevision++;
+        s.TunMode = tun; s.ExcludedApps = paths;
     }, ct);
     public async Task RenameAsync(string id, string name, CancellationToken ct) => await EditAsync(s => {
         var sub = s.Subscriptions.FirstOrDefault(x => x.Id == id) ?? throw new UserError("Подписка не найдена."); sub.Name = CleanName(name);
@@ -97,8 +105,10 @@ public sealed class AppModel
         s.SelectedId = candidates[0].Id; s.GroupFilter = group; s.CountryFilter = country; s.DirectRoutes = direct;
     }, ct);
     public Task SaveSitesAsync(bool ru, bool rf, bool su, string direct, string proxy, CancellationToken ct) => EditAsync(s => {
-        s.SiteRouting = new SiteRouting { RuDirect = ru, RfDirect = rf, SuDirect = su,
+        var policy = new SiteRouting { RuDirect = ru, RfDirect = rf, SuDirect = su,
             DirectDomains = SiteRouting.Parse(direct), ProxyDomains = SiteRouting.Parse(proxy) };
+        if (System.Text.Json.JsonSerializer.Serialize(policy, Storage.Json) != System.Text.Json.JsonSerializer.Serialize(s.SiteRouting, Storage.Json)) s.ConnectionSettingsRevision++;
+        s.SiteRouting = policy;
     }, ct);
     public Task FavoriteAsync(string id, CancellationToken ct) => EditAsync(s => {
         if (s.Profiles.All(p => p.Id != id)) throw new UserError("Подключение больше не существует.");
@@ -116,9 +126,11 @@ public sealed class AppModel
         if (!snapshot.AutoCountry) {
             var profile = snapshot.Selected ?? throw new UserError("Сначала выберите страну или сервер.");
             await Connection.ConnectAsync(profile, snapshot, token);
+            _appliedSettingsRevision = snapshot.ConnectionSettingsRevision; _appliedSelection = SelectionKey(snapshot);
             return;
         }
         await TryCountryAsync(snapshot, "", token);
+        _appliedSettingsRevision = snapshot.ConnectionSettingsRevision; _appliedSelection = SelectionKey(snapshot);
         _recovery = RecoverCountryAsync(snapshot, token);
     }
     private async Task TryCountryAsync(AppState snapshot, string failedId, CancellationToken ct)
@@ -163,6 +175,7 @@ public sealed class AppModel
         if (_recovery != null) { await _recovery; _recovery = null; }
         await Connection.StopAsync();
         _routeSession?.Dispose(); _routeSession = null;
+        _appliedSettingsRevision = null; _appliedSelection = null;
     }
     private async Task EditAsync(Action<AppState> edit, CancellationToken ct)
     {

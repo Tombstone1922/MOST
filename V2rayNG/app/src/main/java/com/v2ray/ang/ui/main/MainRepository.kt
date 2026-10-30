@@ -58,6 +58,7 @@ class MainRepository(
         }
     }
 
+    override fun hasPendingRules() = SettingsManager.hasPendingMostRules()
     override fun getAutoRecovery() = SettingsManager.isMostAutoRecoveryEnabled()
     override fun setAutoRecovery(value: Boolean) { check(MmkvManager.encodeSettings("most_auto_recovery", value)) }
     override fun getBackupGuid() = SettingsManager.getMostBackupGuid()
@@ -242,6 +243,30 @@ class MainRepository(
         }
         result += MmkvManager.decodeSubscriptions()
         return result
+    }
+
+    override fun deleteSubscription(id: String): Boolean {
+        val sub = MmkvManager.decodeSubscription(id) ?: return false
+        val order = MmkvManager.decodeSubsList().toMutableList()
+        val ids = MmkvManager.decodeServerList(id).toMutableList()
+        val profiles = ids.associateWith { MmkvManager.decodeServerConfig(it) ?: error("Missing profile") }
+        val raw = ids.associateWith(MmkvManager::decodeServerRaw)
+        val delay = ids.associateWith { MmkvManager.decodeServerAffiliationInfo(it)?.testDelayMillis }
+        val selected = MmkvManager.getSelectServer()
+        return try {
+            SettingsManager.removeSubscriptionWithDefault(id)
+            check(MmkvManager.decodeSubscription(id) == null && MmkvManager.decodeServerList(id).isEmpty())
+            true
+        } catch (error: Exception) {
+            MmkvManager.encodeSubscription(id, sub)
+            profiles.forEach { (guid, profile) -> MmkvManager.encodeServerConfig(guid, profile) }
+            raw.forEach { (guid, value) -> if (value != null) MmkvManager.encodeServerRaw(guid, value) }
+            delay.forEach { (guid, value) -> if (value != null) MmkvManager.encodeServerTestDelayMillis(guid, value) }
+            MmkvManager.encodeServerList(ids, id); MmkvManager.encodeSubsList(order)
+            selected?.let(MmkvManager::setSelectServer)
+            LogUtil.e(AppConfig.TAG, "MOST subscription removal failed: group=$id", error)
+            false
+        }
     }
 
     override fun renameSubscription(id: String, name: String): Boolean {

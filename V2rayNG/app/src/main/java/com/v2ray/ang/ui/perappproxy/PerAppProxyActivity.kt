@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.perappproxy
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.*
@@ -51,6 +52,7 @@ class PerAppProxyActivity : BaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setResult(RESULT_OK, Intent().putExtra(com.v2ray.ang.handler.SettingsChangeManager.EXTRA_RULES_EDITOR, true))
         viewModel.loadApps(this)
     }
 
@@ -69,6 +71,8 @@ class PerAppProxyActivity : BaseComponentActivity() {
             enabled = enabled, bypass = bypass, selectedOnly = selectedOnly,
             showSystem = showSystem, loadFailed = failed,
             onBack = { finish() },
+            onApply = { setResult(RESULT_OK, Intent().putExtra(com.v2ray.ang.handler.SettingsChangeManager.EXTRA_RULES_EDITOR, true)
+                .putExtra(com.v2ray.ang.handler.SettingsChangeManager.EXTRA_APPLY_RULES, true)); finish() },
             onMode = { useSelection, except ->
                 viewModel.setBypassAppsEnabled(except)
                 viewModel.setPerAppProxyEnabled(useSelection)
@@ -99,7 +103,7 @@ private fun PerAppProxyScreen(
     apps: List<AppInfo>, isLoading: Boolean, selected: Set<String>,
     enabled: Boolean, bypass: Boolean, selectedOnly: Boolean,
     showSystem: Boolean, loadFailed: Boolean,
-    onBack: () -> Unit, onMode: (Boolean, Boolean) -> Unit,
+    onBack: () -> Unit, onApply: () -> Unit, onMode: (Boolean, Boolean) -> Unit,
     onToggle: (String) -> Unit, onSearch: (String) -> Unit,
     onSelectedOnly: (Boolean) -> Unit, onShowSystem: (Boolean) -> Unit,
     onRetry: () -> Unit, onMenu: (PerAppMenuAction) -> Unit
@@ -140,7 +144,7 @@ private fun PerAppProxyScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(10.dp))
-                    Button(onClick = onBack, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                    Button(onClick = onApply, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                         Text(stringResource(R.string.most_apps_apply))
                     }
                 }

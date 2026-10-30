@@ -61,7 +61,7 @@ internal static class Theme
         CornerRadius = new CornerRadius(20), Padding = new Thickness(22), BorderBrush = BorderColor,
         BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 0, 16) };
     public static Border Pill(string value, bool accent = false) => new() {
-        Child = new TextBlock { Text = value, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = accent ? Accent : Muted },
+        Child = new TextBlock { Text = value, FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = accent ? Accent : Muted },
         Background = accent ? AccentSoft : Input, CornerRadius = new CornerRadius(7), Padding = new Thickness(9, 5, 9, 5),
         HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 8, 10) };
     public static CheckBox Check(string text, bool value) {
@@ -70,6 +70,28 @@ internal static class Theme
         AutomationProperties.SetName(c, text); return c;
     }
     public static ComboBox Combo() => new() { MinHeight = 36, FontSize = 13, Margin = new Thickness(0, 0, 8, 10), MinWidth = 170 };
+    public static Grid AdaptiveColumns(FrameworkElement left, FrameworkElement right)
+    {
+        var grid = new Grid(); grid.Children.Add(left); grid.Children.Add(right);
+        bool? wide = null;
+        void Arrange(double width) {
+            var next = width >= 780;
+            if (wide == next) return; wide = next;
+            grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
+            if (next) {
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.08, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition());
+                Grid.SetRow(right, 0); Grid.SetColumn(right, 2);
+            } else {
+                grid.ColumnDefinitions.Add(new ColumnDefinition());
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(right, 1); Grid.SetColumn(right, 0);
+            }
+        }
+        grid.SizeChanged += (_, e) => Arrange(e.NewSize.Width); Arrange(0); return grid;
+    }
     public static Grid Columns(UIElement left, UIElement right, double leftWeight = 1, double rightWeight = 1)
     {
         var grid = new Grid(); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(leftWeight, GridUnitType.Star) });

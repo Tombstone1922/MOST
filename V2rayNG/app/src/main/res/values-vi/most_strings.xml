@@ -3,7 +3,7 @@
     <string name="most_tagline">Kết nối không biên giới</string>
     <string name="most_connect">Connect</string>
     <string name="most_disconnect">Disconnect</string>
-    <string name="most_servers">Servers</string>
+    <string name="most_servers">Connections</string>
     <string name="most_subscriptions">Subscriptions</string>
     <string name="most_settings">Settings</string>
     <string name="most_add">Add</string>
@@ -50,7 +50,7 @@
     <string name="most_msk">Moscow</string>
     <string name="most_server">Server</string>
     <string name="most_bridge">Via Moscow</string>
-    <string name="most_direct">Direct connection</string>
+    <string name="most_direct">Without bridge</string>
     <string name="most_my_subscription">My subscription</string>
     <string name="most_invalid_url">Enter a valid HTTPS URL, or explicitly allow HTTP.</string>
     <string name="most_imported">Servers imported</string>

@@ -104,6 +104,8 @@ class MainViewModel(
     private var mostImportJob: Job? = null
     private var mostUpdateJob: Job? = null
     private var mostRouteJob: Job? = null
+    private var ruleStateJob: Job? = null
+    private var ruleApplyTimeout: Job? = null
     @Volatile private var mostRouteChange = 0L
 
     // ---------- Groups & cache ----------
@@ -191,14 +193,16 @@ class MainViewModel(
                     if (event.value.guid.isNotBlank() && event.value.guid != uiState.value.selectedGuid) refreshSelectedGuid()
                 }
             }
-            MainServiceEvent.StateRunning -> updateRunningState(true, clearTestingText = false)
+            MainServiceEvent.StateRunning -> { updateRunningState(true, clearTestingText = false); refreshRuleState() }
             MainServiceEvent.StateNotRunning -> updateRunningState(false, clearTestingText = false)
             MainServiceEvent.StateStartSuccess -> {
+                _uiState.update { it.copy(rulesApplying = false) }; refreshRuleState()
                 toastSuccess(R.string.toast_services_success)
                 updateRunningState(true)
             }
 
             is MainServiceEvent.StateStartFailure -> {
+                _uiState.update { it.copy(rulesApplying = false) }
                 val message = if (event.message == "most-no-route") R.string.most_route_none else R.string.most_route_start_failed
                 toastError(message)
                 updateRunningState(false)
@@ -336,6 +340,12 @@ class MainViewModel(
     // ---------- Action handler ----------
     fun onAction(action: MainAction) {
         when (action) {
+            MainAction.BeginRulesApply -> {
+                _uiState.update { it.copy(rulesApplying = true) }
+                ruleApplyTimeout?.cancel(); ruleApplyTimeout = viewModelScope.launch {
+                    kotlinx.coroutines.delay(30_000); _uiState.update { it.copy(rulesApplying = false) }; refreshRuleState()
+                }
+            }
             is MainAction.ChooseCountry -> chooseMostRoute(country = action.country)
             is MainAction.ShowDirectRoutes -> showMostDirectRoutes(action.enabled)
             MainAction.DismissSubscriptionFailure -> _uiState.update { it.copy(subscriptionFailure = null) }
@@ -381,6 +391,16 @@ class MainViewModel(
             MainAction.SortByTestResults -> sortByTestResultsAsync()
             MainAction.UpdateSubscriptions -> importConfigViaSub("")
             is MainAction.UpdateSubscription -> importConfigViaSub(action.guid)
+            is MainAction.DeleteSubscription -> {
+                if (uiState.value.isRunning) toastError(R.string.most_ux_stop_before_delete)
+                else viewModelScope.launch(ioDispatcher) {
+                    try {
+                        if (dataSource.deleteSubscription(action.guid)) setupGroupTab(forceRefresh = true).join()
+                        else toastError(R.string.toast_failure)
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (error: Exception) { LogUtil.e(AppConfig.TAG, "MOST subscription removal failed: group=${action.guid}", error); toastError(R.string.toast_failure) }
+                }
+            }
             is MainAction.RenameSubscription -> renameMostSubscription(action.guid, action.name)
             MainAction.ExportAll -> exportAllAsync()
             is MainAction.SelectGroup -> subscriptionIdChanged(action.groupId)
@@ -398,6 +418,7 @@ class MainViewModel(
                 _uiState.update { it.copy(shareQRCodeBitmap = null) }
             }
 
+            MainAction.ApplyRules,
             MainAction.ToggleService,
             MainAction.TestCurrentServer,
             MainAction.ImportQRcode,
@@ -431,7 +452,19 @@ class MainViewModel(
         }
     }
 
+    fun refreshRuleState() {
+        ruleStateJob?.cancel()
+        ruleStateJob = viewModelScope.launch {
+            try {
+                val pending = withContext(ioDispatcher) { dataSource.hasPendingRules() }
+                _uiState.update { it.copy(rulesPending = pending, rulesApplying = it.rulesApplying && pending) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { LogUtil.e(AppConfig.TAG, "MOST rule status read failed: component=main", error) }
+        }
+    }
+
     fun refreshUiSettings() {
+        refreshRuleState()
         _uiState.update {
             it.copy(
                 confirmRemove = dataSource.getConfirmRemove(),

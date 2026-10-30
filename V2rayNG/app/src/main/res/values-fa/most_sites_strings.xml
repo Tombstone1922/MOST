@@ -9,11 +9,11 @@
     <string name="most_sites_proxy">Always through VPN</string>
     <string name="most_sites_priority">One domain or HTTP/HTTPS address per line, including subdomains. Always through VPN overrides the direct lists and domain zones. Apps excluded from VPN remain entirely direct.</string>
     <string name="most_sites_save">Save rules</string>
-    <string name="most_sites_saved">Rules saved. Reconnect VPN and reload open tabs to apply them.</string>
+    <string name="most_sites_saved">Rules saved. Use Apply and reconnect to apply them.</string>
     <string name="most_sites_load_error">Could not load site rules. Retry before editing.</string>
     <string name="most_sites_save_error">Could not save rules. Your previous settings remain unchanged.</string>
     <string name="most_sites_invalid">Enter valid domains, one per line, up to 256 in each list. IP addresses and Xray expressions are not accepted.</string>
     <string name="most_sites_retry">Retry</string>
     <string name="most_sites_dns_hint">For predictable routing, use the system DNS in your browser. Browser-owned secure DNS and ECH may hide the domain; unrecognized sites keep their usual route.</string>
-    <string name="most_sites_reconnect">Changes apply after reconnecting. Domain rules cannot split individual HTTPS pages. A site may use additional domains for sign-in or other resources.</string>
+    <string name="most_sites_reconnect">New rules apply to a new connection. A site may use other domains for sign-in or additional resources.</string>
 </resources>

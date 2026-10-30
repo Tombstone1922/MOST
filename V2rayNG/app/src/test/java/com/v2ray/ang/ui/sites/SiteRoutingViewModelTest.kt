@@ -20,7 +20,8 @@ class SiteRoutingViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val owners = ViewModelStore()
     private class Store : SiteRoutingStore {
-        var value = MostSiteRouting(); var failLoad = false; var failSave = false
+        var value = MostSiteRouting(); var failLoad = false; var failSave = false; var unapplied = false
+        override fun pending() = unapplied
         override fun load(): MostSiteRouting { check(!failLoad); return value }
         override fun save(value: MostSiteRouting) { check(!failSave); this.value = value }
     }
@@ -45,6 +46,15 @@ class SiteRoutingViewModelTest {
         assertEquals(SiteRoutingIssue.INVALID, model.state.value.issue); assertTrue(store.value.ruDirect); assertTrue(store.value.proxyDomains.isEmpty())
         model.onAction(SiteRoutingAction.Proxy("keep.ru")); store.failSave = true; model.onAction(SiteRoutingAction.Save); advanceUntilIdle()
         assertEquals(SiteRoutingIssue.SAVE, model.state.value.issue); assertEquals("keep.ru", model.state.value.proxy); assertTrue(store.value.proxyDomains.isEmpty())
+    }
+    @Test fun applyRequiresSavedRulesAndDaemonAcknowledgement() = runTest(dispatcher) {
+        val store = Store(); store.unapplied = true; val model = model(store); advanceUntilIdle()
+        assertTrue(model.state.value.pending)
+        model.onAction(SiteRoutingAction.Direct("example.ru")); model.onAction(SiteRoutingAction.Apply)
+        assertFalse(model.state.value.applyRequested)
+        model.onAction(SiteRoutingAction.Save); advanceUntilIdle(); assertTrue(model.state.value.pending)
+        model.onAction(SiteRoutingAction.Apply); assertTrue(model.state.value.applyRequested)
+        store.unapplied = false; val reopened = model(store, "acknowledged"); advanceUntilIdle(); assertFalse(reopened.state.value.pending)
     }
     @Test fun loadFailureRequiresRetryBeforeSaving() = runTest(dispatcher) {
         val store = Store(); store.failLoad = true; val model = model(store); advanceUntilIdle()
