@@ -343,7 +343,7 @@ class MainViewModel(
             MainAction.BeginRulesApply -> {
                 _uiState.update { it.copy(rulesApplying = true) }
                 ruleApplyTimeout?.cancel(); ruleApplyTimeout = viewModelScope.launch {
-                    kotlinx.coroutines.delay(30_000); _uiState.update { it.copy(rulesApplying = false) }; refreshRuleState()
+                    kotlinx.coroutines.delay(30_000); _uiState.update { it.copy(rulesApplying = false, connectionFailure = if (it.rulesPending) R.string.most_route_start_failed else it.connectionFailure) }; refreshRuleState()
                 }
             }
             is MainAction.ChooseCountry -> chooseMostRoute(country = action.country)

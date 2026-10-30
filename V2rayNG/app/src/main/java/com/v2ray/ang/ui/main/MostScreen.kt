@@ -88,7 +88,7 @@ internal fun MostScreen(
                     })
                 }
             }
-            if (loading || state.routeBusy) item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (loading || state.routeBusy || state.rulesApplying) item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (state.rulesPending && state.isRunning) item(span = { GridItemSpan(maxLineSpan) }) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -109,7 +109,7 @@ internal fun MostScreen(
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
                             .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface)))
                             .padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Text(stringResource(if (state.isRunning) mostHealthLabel(health?.state) else R.string.most_ready),
+                            Text(stringResource(if (state.rulesApplying) R.string.most_ux_applying else if (state.isRunning) mostHealthLabel(health?.state) else R.string.most_ready),
                                 style = MaterialTheme.typography.headlineSmall)
                             val action = stringResource(if (state.isRunning) R.string.most_disconnect else R.string.most_connect)
                             Surface(onClick = { onAction(MainAction.ToggleService) },
@@ -295,6 +295,7 @@ internal fun MostScreen(
                                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                                 DropdownMenuItem(text = { Text(stringResource(R.string.most_subscription_rename)) }, onClick = { menu = false; renameGuid = item.guid; renameDraft = item.title })
                                                 DropdownMenuItem(text = { Text(stringResource(R.string.most_ux_delete)) }, onClick = { menu = false; deleteGuid = item.guid })
+                                                DropdownMenuItem(text = { Text(stringResource(R.string.most_ux_subscription_options)) }, onClick = { menu = false; onNavigate(MainDestination.Subscriptions) })
                                             }
                                         }
                                     }
@@ -337,6 +338,8 @@ internal fun MostScreen(
                     item { MostLink(R.string.most_about, R.drawable.ic_about_24dp, { onNavigate(MainDestination.About) }) }
                     item { TextButton(onClick = { technicalExpanded = !technicalExpanded }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.most_ux_tools)) } }
                     if (technicalExpanded) {
+                        item { TextButton(onClick = { onAction(MainAction.ImportConfigLocal) }) { Text(stringResource(R.string.most_ux_import_file)) } }
+                        item { TextButton(onClick = { onAction(MainAction.ExportAll) }) { Text(stringResource(R.string.most_ux_export)) } }
                         item { MostLink(R.string.most_routing, R.drawable.ic_routing_24dp, { onNavigate(MainDestination.Routing) }) }
                         item { MostLink(R.string.most_backup, R.drawable.ic_backup_24dp, { onNavigate(MainDestination.BackupRestore) }) }
                         item { MostLink(R.string.most_logs, R.drawable.ic_logcat_24dp, { onNavigate(MainDestination.Logcat) }) }

@@ -14,4 +14,7 @@
     <string name="most_ux_stop_before_delete">Отключите VPN перед удалением подписки.</string>
     <string name="most_ux_edit">Редактировать подключение</string>
     <string name="most_ux_copy_link">Скопировать ссылку</string>
+    <string name="most_ux_subscription_options">Параметры подписок</string>
+    <string name="most_ux_import_file">Импорт из файла</string>
+    <string name="most_ux_export">Экспорт подключений</string>
 </resources>

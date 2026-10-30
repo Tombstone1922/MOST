@@ -14,4 +14,7 @@
     <string name="most_ux_stop_before_delete">Disconnect VPN before deleting a subscription.</string>
     <string name="most_ux_edit">Edit connection</string>
     <string name="most_ux_copy_link">Copy link</string>
+    <string name="most_ux_subscription_options">Subscription options</string>
+    <string name="most_ux_import_file">Import from file</string>
+    <string name="most_ux_export">Export connections</string>
 </resources>
