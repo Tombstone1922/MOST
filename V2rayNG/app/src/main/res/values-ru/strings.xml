@@ -492,6 +492,7 @@
         <item>Как в системе</item>
         <item>Светлая</item>
         <item>Тёмная</item>
+        <item>Чёрная</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">Белый список Китая</string>

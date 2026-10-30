@@ -30,5 +30,7 @@
     <string name="most_route_wrong_country_title">Другая страна выхода</string>
     <string name="most_route_direct">Без моста через Москву</string>
     <string name="most_route_bridge">Мостовые подключения</string>
-    <string name="most_route_direct_hint">С галочкой — VPN напрямую к серверу. Без галочки — VPN через московский мост.</string>
+    <string name="most_route_direct_hint">Прямое — VPN напрямую к серверу. Мостовое — VPN через Москву.</string>
+    <string name="most_route_type_direct">Прямое</string>
+    <string name="most_route_type_bridge">Мостовое</string>
 </resources>

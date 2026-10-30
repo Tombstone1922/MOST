@@ -489,6 +489,7 @@
         <item>Sistem Standartı</item>
         <item>İşıqlı</item>
         <item>Qaranlıq</item>
+        <item>Qara</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">Çin Ağ Siyahısı</string>

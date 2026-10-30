@@ -496,6 +496,7 @@
         <item>اتبع النظام</item>
         <item>فاتح</item>
         <item>داكن</item>
+        <item>أسود</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">القائمة البيضاء للصين</string>

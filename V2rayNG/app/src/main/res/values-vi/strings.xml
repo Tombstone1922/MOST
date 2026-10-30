@@ -486,6 +486,7 @@
         <item>Theo hệ thống</item>
         <item>Sáng</item>
         <item>Tối</item>
+        <item>Đen</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">Danh sách trắng Trung Quốc</string>

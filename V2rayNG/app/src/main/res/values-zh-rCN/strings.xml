@@ -486,6 +486,7 @@
         <item>跟随系统</item>
         <item>浅色</item>
         <item>深色</item>
+        <item>纯黑</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">绕过大陆 (Whitelist)</string>

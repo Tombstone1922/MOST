@@ -1,5 +1,9 @@
 # UX release validation
 
+Android 0.5.1: replace the country-route checkbox with two single-choice Material segments (Direct on the left, Bridge on the right). Existing boolean persistence, ViewModel actions and route selection semantics remain unchanged. Add mode `3` for a black canvas; persisted modes `0`, `1`, `2` keep their meanings. A missing setting defaults to `3`. Wallpaper accents remain available, while black background/surface and neutral elevated containers are applied after dynamic color resolution. Theme collection follows the activity lifecycle. Targeted CI adds ThemeTest for previous mode compatibility and black-canvas invariants with wallpaper colors, then assembles/signs/publishes the universal APK.
+
+Not run for 0.5.1: physical-device/emulator rendering of all four modes with wallpaper colors on/off, portrait/landscape/large text, touch/keyboard/D-pad/TalkBack segment activation and focus, save/reopen theme and route choice, actual APK installation/OTA handoff. No emulator campaign is run following the user's build-focused validation preference. Compilation and pure tests do not verify these runtime scenarios.
+
 Windows 0.3.0 / Android 0.5.0. Native libraries, transport protocols, credentials and subscription identities are unchanged.
 
 Windows: five primary destinations, grouped application/site rules and secondary log/update destinations; adaptive dashboard; one main power action; visible search labels; retained modal import with contextual HTTP consent, progress, cancellation and inline retry; selection-only updates preserve the server list instance; persisted settings revision distinguishes saved rules from the live session. Applying pending rules or a selected direction replaces the connection using the existing controller.

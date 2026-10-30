@@ -488,6 +488,7 @@
         <item>সিস্টেম অনুসরণ করুন</item>
         <item>লাইট</item>
         <item>ডার্ক</item>
+        <item>কালো</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">চায়না হোয়াইটলিস্ট</string>

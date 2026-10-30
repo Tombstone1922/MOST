@@ -486,6 +486,7 @@
         <item>跟隨系統</item>
         <item>淺色</item>
         <item>深色</item>
+        <item>純黑</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">中國大陸白名單</string>

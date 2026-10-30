@@ -14,8 +14,8 @@ android {
         applicationId = "net.h1cloud.most"
         minSdk = 24
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.5.0"
+        versionCode = 12
+        versionName = "0.5.1"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {

@@ -195,17 +195,24 @@ internal fun MostScreen(
                     }
                     if (!showConnections) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            Row(Modifier.fillMaxWidth().toggleable(value = state.directRoutes, enabled = !state.routeBusy,
-                                role = androidx.compose.ui.semantics.Role.Checkbox,
-                                onValueChange = { onAction(MainAction.ShowDirectRoutes(it)) }).padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = state.directRoutes, onCheckedChange = null, enabled = !state.routeBusy)
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.most_route_direct))
-                                    Text(stringResource(R.string.most_route_direct_hint), style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                    SegmentedButton(selected = state.directRoutes,
+                                        onClick = { onAction(MainAction.ShowDirectRoutes(true)) },
+                                        enabled = !state.routeBusy,
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                        label = { Text(stringResource(R.string.most_route_type_direct)) })
+                                    SegmentedButton(selected = !state.directRoutes,
+                                        onClick = { onAction(MainAction.ShowDirectRoutes(false)) },
+                                        enabled = !state.routeBusy,
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                        label = { Text(stringResource(R.string.most_route_type_bridge)) })
                                 }
+                                Text(stringResource(R.string.most_route_direct_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         item(span = { GridItemSpan(maxLineSpan) }) {

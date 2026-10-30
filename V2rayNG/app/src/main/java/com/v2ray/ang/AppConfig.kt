@@ -57,7 +57,7 @@ object AppConfig {
     const val PREF_GROUP_ALL_DISPLAY = "pref_group_all_display"
     const val PREF_LANGUAGE = "pref_language"
     const val PREF_APP_LOCALE_MIGRATED = "pref_app_locale_migrated"
-    const val DEFAULT_UI_MODE_NIGHT = "2"
+    const val DEFAULT_UI_MODE_NIGHT = "3"
     const val DEFAULT_DYNAMIC_COLOR = false
     const val PREF_UI_MODE_NIGHT = "pref_ui_mode_night"
     const val PREF_DYNAMIC_COLOR = "pref_dynamic_color"

@@ -30,5 +30,7 @@
     <string name="most_route_wrong_country_title">Unexpected exit country</string>
     <string name="most_route_direct">Without Moscow bridge</string>
     <string name="most_route_bridge">Bridge connections</string>
-    <string name="most_route_direct_hint">Checked: VPN directly to the server. Unchecked: VPN through the Moscow bridge.</string>
+    <string name="most_route_direct_hint">Direct: VPN connects to the server directly. Bridge: VPN connects through Moscow.</string>
+    <string name="most_route_type_direct">مستقیم</string>
+    <string name="most_route_type_bridge">پل</string>
 </resources>

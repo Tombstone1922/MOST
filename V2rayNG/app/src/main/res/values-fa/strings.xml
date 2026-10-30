@@ -488,6 +488,7 @@
         <item>پیش فرض سیستم</item>
         <item>روشن</item>
         <item>تاریک</item>
+        <item>مشکی</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">لیست سفید چین ( دور زدن سرزمین اصلی )</string>
