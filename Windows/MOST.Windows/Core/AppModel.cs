@@ -10,7 +10,7 @@ namespace Most.Windows.Core;
 /// Owns durable desktop state and subscription transactions; views only dispatch actions.
 public sealed class AppModel
 {
-    public const string Version = "0.2.0";
+    public const string Version = "0.2.1";
     private readonly Storage _storage = new();
     private readonly SemaphoreSlim _data = new(1, 1);
     public bool Initialized { get; private set; }
@@ -95,6 +95,10 @@ public sealed class AppModel
         if (candidates.Count == 0) throw new UserError("Для этой страны нет подходящих подключений в выбранной подписке.");
         s.AutoCountry = true; s.AutoGroupId = group; s.AutoCountryCode = country; s.AutoDirect = direct;
         s.SelectedId = candidates[0].Id; s.GroupFilter = group; s.CountryFilter = country; s.DirectRoutes = direct;
+    }, ct);
+    public Task SaveSitesAsync(bool ru, bool rf, bool su, string direct, string proxy, CancellationToken ct) => EditAsync(s => {
+        s.SiteRouting = new SiteRouting { RuDirect = ru, RfDirect = rf, SuDirect = su,
+            DirectDomains = SiteRouting.Parse(direct), ProxyDomains = SiteRouting.Parse(proxy) };
     }, ct);
     public Task FavoriteAsync(string id, CancellationToken ct) => EditAsync(s => {
         if (s.Profiles.All(p => p.Id != id)) throw new UserError("Подключение больше не существует.");

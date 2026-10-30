@@ -30,6 +30,8 @@ public sealed class MainWindow : Window
     private Task? _updateLoop;
     private int _page;
     private bool _busy, _rendering, _allowClose, _closing, _favoritesOnly;
+    private bool? _siteRu, _siteRf, _siteSu;
+    private string? _siteDirectDraft, _siteProxyDraft;
     private string _search = "", _appSearch = "";
     private IReadOnlyList<DesktopApp> _catalog = Array.Empty<DesktopApp>();
     private List<string>? _appDraft;
@@ -58,8 +60,8 @@ public sealed class MainWindow : Window
         trayButton.Click += (_, _) => Hide(); footer.Children.Add(trayButton);
         DockPanel.SetDock(footer, Dock.Bottom); side.Children.Add(footer);
         var navigation = new StackPanel { Margin = new Thickness(12, 0, 12, 0) };
-        var titles = new[] { "Главная", "Серверы", "Подписки", "Приложения", "Настройки", "Журнал", "Обновления" };
-        var icons = new[] { "\uE80F", "\uE774", "\uE8F1", "\uE71D", "\uE713", "\uE9D9", "\uE895" };
+        var titles = new[] { "Главная", "Серверы", "Подписки", "Приложения", "Настройки", "Журнал", "Обновления", "Сайты" };
+        var icons = new[] { "\uE80F", "\uE774", "\uE8F1", "\uE71D", "\uE713", "\uE9D9", "\uE895", "\uE774" };
         for (var i = 0; i < titles.Length; i++) {
             var index = i; var button = Theme.Nav(titles[i], icons[i]);
             button.Click += (_, _) => Navigate(index); navigation.Children.Add(button); _nav.Add(button);
@@ -132,7 +134,7 @@ public sealed class MainWindow : Window
             _power = _connectButton = _stopButton = _checkUpdate = _downloadUpdate = _installUpdate = null; _progress = null; _updateBanner = null;
             _shownUpdate = _model.Updates.Available?.Version;
             for (var i = 0; i < _nav.Count; i++) { _nav[i].Background = i == _page ? Theme.AccentSoft : Brushes.Transparent; _nav[i].Foreground = i == _page ? Theme.Accent : Theme.Muted; }
-            switch (_page) { case 0: Home(); break; case 1: Servers(); break; case 2: Subscriptions(); break; case 3: Apps(); break; case 4: Settings(); break; case 5: Logs(); break; case 6: Updates(); break; }
+            switch (_page) { case 0: Home(); break; case 1: Servers(); break; case 2: Subscriptions(); break; case 3: Apps(); break; case 4: Settings(); break; case 5: Logs(); break; case 6: Updates(); break; case 7: Sites(); break; }
         } finally { _rendering = false; }
         UpdateStatus();
     }
@@ -358,9 +360,39 @@ public sealed class MainWindow : Window
         var save = Theme.Button("Сохранить режим", true); save.Click += async (_, _) => await RunAsync(() => _model.SaveSettingsAsync(tun.IsChecked == true, _model.State.ExcludedApps, _lifetime.Token)); card.Children.Add(save);
         card.Children.Add(Theme.Label("Изменение режима применяется после переподключения.", 12, Theme.Muted));
         if (_model.Connection.ProxyAddress.Length > 0) card.Children.Add(Theme.Label(_model.Connection.ProxyAddress, 12, Theme.Muted)); _content.Children.Add(Theme.Card(card));
+        var sites = Theme.Button("Сайты без VPN →"); sites.Click += (_, _) => Navigate(7); _content.Children.Add(sites);
         var info = new StackPanel(); info.Children.Add(Theme.Label("MOST · " + AppModel.Version, 20)); info.Children.Add(Theme.Label("Связь без границ", 14, Theme.Accent));
         info.Children.Add(Theme.Label("Ваши подписки и настройки сохраняются на компьютере и защищаются вашей учётной записью Windows.", 13, Theme.Muted));
         var update = Theme.Button("Обновления MOST →"); update.Click += (_, _) => Navigate(6); info.Children.Add(update); _content.Children.Add(Theme.Card(info));
+    }
+    private void Sites()
+    {
+        Heading("Сайты без VPN", "Выберите домены для прямого подключения. Остальные сайты сохраняют обычный маршрут VPN.");
+        var policy = _model.State.SiteRouting;
+        var panel = new StackPanel();
+        var ru = Theme.Check("Все сайты .ru без VPN", _siteRu ?? policy.RuDirect);
+        var rf = Theme.Check("Все сайты .рф без VPN", _siteRf ?? policy.RfDirect);
+        var su = Theme.Check("Все сайты .su без VPN", _siteSu ?? policy.SuDirect);
+        ru.Checked += (_, _) => _siteRu = true; ru.Unchecked += (_, _) => _siteRu = false;
+        rf.Checked += (_, _) => _siteRf = true; rf.Unchecked += (_, _) => _siteRf = false;
+        su.Checked += (_, _) => _siteSu = true; su.Unchecked += (_, _) => _siteSu = false;
+        panel.Children.Add(ru); panel.Children.Add(rf); panel.Children.Add(su);
+        panel.Children.Add(Theme.Label("Дополнительные сайты без VPN", 17));
+        var direct = Theme.TextInput(_siteDirectDraft ?? string.Join(Environment.NewLine, policy.DirectDomains), true); direct.MinHeight = 95;
+        direct.TextChanged += (_, _) => _siteDirectDraft = direct.Text;
+        AutomationProperties.SetName(direct, "Дополнительные сайты без VPN"); panel.Children.Add(direct);
+        panel.Children.Add(Theme.Label("Всегда через VPN", 17));
+        var proxy = Theme.TextInput(_siteProxyDraft ?? string.Join(Environment.NewLine, policy.ProxyDomains), true); proxy.MinHeight = 95;
+        proxy.TextChanged += (_, _) => _siteProxyDraft = proxy.Text;
+        AutomationProperties.SetName(proxy, "Всегда через VPN"); panel.Children.Add(proxy);
+        panel.Children.Add(Theme.Label("По одному домену или адресу на строку. Поддомены включены. «Всегда через VPN» перекрывает .ru и список сайтов без VPN. Исключение всего приложения действует раньше правил сайтов.", 12, Theme.Muted));
+        var save = Theme.Button("Сохранить правила", true); save.IsEnabled = !_busy;
+        save.Click += async (_, _) => await RunAsync(async () => {
+            await _model.SaveSitesAsync(ru.IsChecked == true, rf.IsChecked == true, su.IsChecked == true, direct.Text, proxy.Text, _lifetime.Token);
+            _siteRu = _siteRf = _siteSu = null; _siteDirectDraft = _siteProxyDraft = null;
+            Notice("Правила сохранены. Переподключите VPN и обновите открытые вкладки, чтобы применить их.");
+        }); panel.Children.Add(save); _content.Children.Add(Theme.Card(panel));
+        _content.Children.Add(Theme.Label("Для предсказуемой работы правил используйте системный DNS в браузере. Собственный защищённый DNS и ECH могут скрывать домен: если MOST не распознаёт сайт, он остаётся на обычном маршруте. Изменения применяются после переподключения.", 12, Theme.Muted));
     }
     private void Logs()
     {

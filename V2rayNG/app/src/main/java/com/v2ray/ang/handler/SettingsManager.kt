@@ -35,6 +35,16 @@ import kotlin.random.Random
 
 object SettingsManager {
 
+    fun getMostSiteRouting(): com.v2ray.ang.core.MostSiteRouting {
+        val raw = MmkvManager.decodeSettingsString("most_site_routing_v1") ?: return com.v2ray.ang.core.MostSiteRouting()
+        return JsonUtil.fromJson(raw, com.v2ray.ang.core.MostSiteRouting::class.java)
+            ?: error("Cannot read site routing preferences")
+    }
+
+    fun saveMostSiteRouting(value: com.v2ray.ang.core.MostSiteRouting) {
+        check(MmkvManager.encodeSettings("most_site_routing_v1", JsonUtil.toJson(value)))
+    }
+
     @Volatile
     private var runtimeSocksPort: Int? = null
     // Daemon-only runtime listener; UI uses acknowledged health messages instead.

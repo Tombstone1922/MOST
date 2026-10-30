@@ -350,6 +350,7 @@ internal fun MostScreen(
                 }
                 3 -> {
                     item { Text(stringResource(R.string.most_settings), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+                    item { MostLink(R.string.most_sites_title, R.drawable.ic_routing_24dp, { onNavigate(MainDestination.SiteRouting) }) }
                     item { MostLink(R.string.most_preferences, R.drawable.ic_settings_24dp, { onNavigate(MainDestination.Settings) }) }
                     item { MostLink(R.string.most_apps_title, R.drawable.ic_per_apps_24dp, { onNavigate(MainDestination.PerAppProxy) }) }
                     item { MostLink(R.string.most_routing, R.drawable.ic_routing_24dp, { onNavigate(MainDestination.Routing) }) }

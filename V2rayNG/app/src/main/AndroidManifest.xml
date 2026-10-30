@@ -92,6 +92,7 @@
             android:name=".ui.server.ServerShadowsocksActivity"
             android:exported="false"
             android:windowSoftInputMode="stateUnchanged|adjustResize" />
+        <activity android:name=".ui.sites.SiteRoutingActivity" android:exported="false" android:windowSoftInputMode="stateUnchanged|adjustResize" />
         <activity
             android:name=".ui.server.ServerSocksActivity"
             android:exported="false"

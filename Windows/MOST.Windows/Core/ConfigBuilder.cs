@@ -27,9 +27,11 @@ public static class ConfigBuilder
         if (state.TunMode && state.ExcludedApps.Count > 0) rules.Add(new JsonObject { ["type"] = "field", ["inboundTag"] = Strings(new[] { "most-tun" }),
             ["process"] = Strings(state.ExcludedApps), ["outboundTag"] = "direct" });
         rules.Add(new JsonObject { ["type"] = "field", ["network"] = "tcp,udp", ["outboundTag"] = "proxy" });
-        return new JsonObject { ["log"] = new JsonObject { ["loglevel"] = "warning", ["access"] = "none" },
+        var config = new JsonObject { ["log"] = new JsonObject { ["loglevel"] = "warning", ["access"] = "none" },
             ["inbounds"] = inbounds, ["outbounds"] = new JsonArray { proxy,
                 new JsonObject { ["tag"] = "direct", ["protocol"] = "freedom" }, new JsonObject { ["tag"] = "block", ["protocol"] = "blackhole" } },
             ["routing"] = new JsonObject { ["domainStrategy"] = "AsIs", ["rules"] = rules } };
+        SiteRouting.Apply(config, state.SiteRouting);
+        return config;
     }
 }

@@ -48,6 +48,7 @@ public sealed class AppState
     public string GroupFilter { get; set; } = "";
     public string CountryFilter { get; set; } = "";
     public bool DirectRoutes { get; set; }
+    public SiteRouting SiteRouting { get; set; } = new();
     public bool TunMode { get; set; } = true;
     public List<string> ExcludedApps { get; set; } = new();
     public bool AutoCountry { get; set; }

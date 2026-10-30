@@ -1,0 +1,9 @@
+# Site routing release validation
+
+Windows 0.2.1 / Android 0.4.5. Defaults are off. App-owned preferences are separate from subscriptions and remain across profile replacement. Saving preferences does not mutate a running core; reconnect to apply.
+
+Targeted CI: domain/URL/IDN normalization; invalid input and bounded lists; forced-proxy precedence over direct TLD/domain lists; suffix boundary checks; preceding-format default compatibility; Android editor load/edit/save/failure/reopen state; native Xray syntax check for the generated Windows site config. Ordinary and custom Android configs are transformed at startup; existing saved configs are untouched. Policy groups use the original main balancer. Dedicated health listener remains forced through VPN.
+
+DNS: core DNS outbound handles ordinary A/AAAA and returns empty responses for unsupported query types; TLS/HTTP/QUIC sniffing supplies domains for routing. VPN endpoint bootstrap DNS goes directly to 1.1.1.1/8.8.8.8 to avoid depending on its own tunnel. Existing Android FakeDNS behavior is retained. Browser-owned encrypted DNS is not intercepted; ECH and cached/coalesced browser connections may prevent site identification. Unknown domains follow the existing profile routing. Excluded applications on Android bypass the VPN service entirely; on Windows whole-process exclusions precede site rules.
+
+Not run: physical-device/emulator routing, raw DNS/DoH/ECH/QUIC and DNS cache behavior, Android VPN/proxy/root mode routing on devices, TalkBack/semantics tree, touch/keyboard/D-pad, keyboard-open first/last form interaction, real activity recreation/process death/persistence navigation, Windows UI/DPI/install/update. The user requested short build-focused validation without emulator campaigns. Compilation does not verify those runtime behaviors.

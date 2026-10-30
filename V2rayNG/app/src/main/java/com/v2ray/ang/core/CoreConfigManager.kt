@@ -67,10 +67,13 @@ object CoreConfigManager {
                     guid = guid,
                     errorMessage = "Failed to build config context"
                 )
-            if (configContext.isCustom) {
-                return buildV2rayCustomConfig(configContext)
-            }
-            return toConfigResult(configContext, buildUnifiedConfig(configContext))
+            val result = if (configContext.isCustom) buildV2rayCustomConfig(configContext)
+                else toConfigResult(configContext, buildUnifiedConfig(configContext))
+            val sites = SettingsManager.getMostSiteRouting()
+            if (!sites.active || !result.status) return result
+            val json = JsonUtil.parseString(result.content)?.asJsonObject ?: return result
+            MostSiteConfig.apply(json, sites)
+            return ConfigResult(true, result.guid, JsonUtil.toJsonPretty(json) ?: error("Cannot serialize site routing"))
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to get V2ray config", e)
             return ConfigResult(
