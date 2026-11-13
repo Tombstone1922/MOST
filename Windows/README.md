@@ -1,13 +1,13 @@
 # MOST Windows
 
-Windows 10/11 x64 desktop client, version 0.2.1. C# / WPF / self-contained .NET 10.
+Windows 10/11 x64 desktop client, version 0.3.1. C# / WPF / self-contained .NET 10.
 Android UI is platform-specific; its VLESS transport/import/country semantics are carried into the desktop model. The same Xray family handles the network. Android and Windows share the slogan «Связь без границ»; their native builds remain separate.
 
 `MOST.Windows/Core` owns imports, DPAPI persistence, profile routing and the native process lifecycle. Views dispatch actions through AppModel. Xray 26.10.21 provides TUN, process matching and outbound binding; official Wintun 0.14.1 is packaged with its license. Upstream ZIP hashes are pinned in `ci/windows/prepare.py`.
 
 Build on Windows: `dotnet run --project Windows/MOST.Windows.Tests -c Release`, then `dotnet publish Windows/MOST.Windows -c Release -r win-x64 --self-contained true -o out/windows/app`. Run `python ci/windows/prepare.py` to add the verified network components. `ci/windows/setup.iss` builds the installer with Inno Setup 6.
 
-The GitHub Actions Windows workflow runs focused parser/config/DPAPI assertions and validates generated transport configs with the real Xray binary without opening a TUN or using private subscriptions. It publishes `windows-v0.2.1` with `latest=false`; Android `/releases/latest` OTA remains independent.
+The GitHub Actions Windows workflow runs focused parser/config/DPAPI assertions and validates generated transport configs with the real Xray binary without opening a TUN or using private subscriptions. It publishes `windows-v0.3.1` with `latest=false`; Android `/releases/latest` OTA remains independent.
 
 Not run: Windows 10/11 user-device connection, TUN, DNS/IPv6, process exclusions, handover, stop/crash/session ending, install/uninstall, keyboard/accessibility/DPI matrix. No emulator or broad runtime test campaign was performed. A successful build does not verify VPN runtime behavior. The application and installer are unsigned. See README_RU.txt for user instructions and limits.
 
@@ -17,8 +17,10 @@ Windows OTA reads only the fixed repository GitHub Releases API, ignores Android
 
 Not run for 0.2.1: user-device auto failover, Windows notification delivery, installer handoff/update and settings retention during a real installation, updated WPF layout/keyboard/DPI/accessibility and process exclusion runtime. Focused CI checks cover candidate isolation/order, preceding-state compatibility, release selection/source/hash rules, parser/config generation and DPAPI.
 
-Site rules (0.2.1): opt-in ru/rf/su suffixes, additional direct domains and higher-priority forced-proxy domains. Whole-process exclusions and the dedicated health inbound retain priority. Rules only affect tagged user traffic; DNS resolver transport remains through proxy except explicit VPN endpoint bootstrap. Plain DNS is handled by the core; HTTP/TLS/QUIC domain sniffing is route-only. Browser-owned DoH/ECH may hide domains; unknown domains retain their existing route. No TLS interception, browser settings changes or shared-IP bypass lists. Domains include descendants; individual HTTPS paths are not matched. Existing rules are disabled by default, including preceding 0.2.0 states. Save and reconnect to apply.
+Site rules: opt-in ru/rf/su suffixes, additional direct domains and higher-priority forced-proxy domains. Whole-process exclusions and the dedicated health inbound retain priority. Rules only affect tagged user traffic; DNS for direct sites and VPN endpoint bootstrap uses the direct exit. DNS for all other sites and forced-VPN exceptions uses the proxy. Matching resolver groups cannot fall back across routes. Plain DNS is handled by the core; HTTP/TLS/QUIC domain sniffing is route-only. Browser-owned DoH/ECH may hide domains; unknown domains retain their existing route. No TLS interception, browser settings changes or shared-IP bypass lists. Domains include descendants; individual HTTPS paths are not matched. Existing rules are disabled by default, including preceding 0.2.0 states. Save and reconnect to apply.
 
 Not run: real Windows domain split (TCP/QUIC, browser DoH/ECH, DNS/cache behavior), old connection replacement after reconnect, UI focus/DPI/keyboard. CI validates generated site-rule config with pinned Xray and asserts precedence, suffix boundaries, parser validation and state compatibility.
 
 0.3.0 UX: five primary destinations; one dashboard power action; adaptive single/two-column layout; grouped connection rules; persistent pending-change action above desktop pages; modal import keeps the draft after failures and uses contextual HTTP consent. The application still requires elevation and its installer remains unsigned. Not run: live Windows UI/DPI/keyboard and rule-application/import failure interaction. See VALIDATION_UX.md in the repository.
+
+0.3.1: CI checks split DNS for direct/forced-VPN/default domains and validates the bridge configs for TCP, gRPC and XHTTP with pinned Xray. Not run: live Windows TUN browsing, DNS/cache/DoH/ECH behavior and installer/OTA handoff on a user device.

@@ -54,23 +54,38 @@ public sealed class SiteRouting
         // Keep diagnostic traffic and whole-process exclusions ahead of site rules.
         var index = rules.TakeWhile(r => r?["inboundTag"]?.AsArray().Any(t => t?.GetValue<string>() == "diagnostic") == true || r?["process"] != null).Count();
         JsonObject Rule(IEnumerable<string> domains, string outbound) => new() { ["type"] = "field", ["inboundTag"] = Strings(tags), ["domain"] = Strings(domains), ["outboundTag"] = outbound };
+        void RouteDns(string tag, string outbound) => rules.Insert(index++, new JsonObject {
+            ["type"] = "field", ["inboundTag"] = Strings(new[] { tag }), ["outboundTag"] = outbound });
         rules.Insert(index++, new JsonObject { ["type"] = "field", ["inboundTag"] = Strings(tags), ["port"] = "53", ["outboundTag"] = "most-sites-dns-out" });
-        rules.Insert(index++, new JsonObject { ["type"] = "field", ["inboundTag"] = Strings(new[] { "most-sites-dns" }), ["outboundTag"] = "proxy" });
-        if (policy.ProxyDomains.Count > 0) rules.Insert(index++, Rule(policy.ProxyDomains.Select(d => "domain:" + d), "proxy"));
+        RouteDns("most-sites-dns", "proxy");
+        var forced = policy.ProxyDomains.Select(d => "domain:" + d).ToArray();
         var direct = policy.DirectRules.ToArray();
-        if (direct.Length > 0) rules.Insert(index, Rule(direct, "direct"));
+        if (forced.Length > 0) rules.Insert(index++, Rule(forced, "proxy"));
+        if (direct.Length > 0) rules.Insert(index++, Rule(direct, "direct"));
         var servers = new JsonArray();
+        void AddScopedResolvers(string tag, IEnumerable<string> domains) {
+            // Xray checks matched resolvers in declaration order. The last one in
+            // each group stops fallback into another route (e.g. keep.ru into .ru).
+            foreach (var address in new[] { "1.1.1.1", "8.8.8.8" }) servers.Add(new JsonObject {
+                ["address"] = address, ["tag"] = tag, ["domains"] = Strings(domains),
+                ["skipFallback"] = true, ["finalQuery"] = address == "8.8.8.8" });
+        }
         var proxy = config["outbounds"]![0]!.AsObject();
         var endpoint = proxy["settings"]!["address"]!.GetValue<string>();
         if (!IPAddress.TryParse(endpoint, out _)) {
             // The VPN server itself must resolve before its tunnel exists.
-            foreach (var address in new[] { "1.1.1.1", "8.8.8.8" }) servers.Add(new JsonObject {
-                ["address"] = address, ["tag"] = "most-sites-bootstrap", ["domains"] = Strings(new[] { "full:" + endpoint }), ["skipFallback"] = true });
+            AddScopedResolvers("most-sites-bootstrap", new[] { "full:" + endpoint });
             var stream = proxy["streamSettings"]!.AsObject();
             var sockopt = stream["sockopt"] as JsonObject;
             if (sockopt == null) { sockopt = new JsonObject(); stream["sockopt"] = sockopt; }
             sockopt["domainStrategy"] = "UseIP";
-            rules.Insert(index, new JsonObject { ["type"] = "field", ["inboundTag"] = Strings(new[] { "most-sites-bootstrap" }), ["outboundTag"] = "direct" });
+            RouteDns("most-sites-bootstrap", "direct");
+        }
+        if (direct.Length > 0) {
+            // Domain precedence for DNS follows the traffic rules above.
+            if (forced.Length > 0) AddScopedResolvers("most-sites-dns", forced);
+            AddScopedResolvers("most-sites-dns-direct", direct);
+            RouteDns("most-sites-dns-direct", "direct");
         }
         servers.Add("1.1.1.1"); servers.Add("8.8.8.8");
         config["dns"] = new JsonObject { ["tag"] = "most-sites-dns", ["servers"] = servers };

@@ -10,7 +10,7 @@ namespace Most.Windows.Core;
 /// Owns durable desktop state and subscription transactions; views only dispatch actions.
 public sealed class AppModel
 {
-    public const string Version = "0.3.0";
+    public const string Version = "0.3.1";
     private readonly Storage _storage = new();
     private readonly SemaphoreSlim _data = new(1, 1);
     public bool Initialized { get; private set; }

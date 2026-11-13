@@ -70,7 +70,9 @@ Check(!previousState.SiteRouting.Active, "0.2.0 settings keep site rules disable
 var siteState = Storage.Clone(state);
 siteState.SiteRouting = new SiteRouting { RuDirect = true, RfDirect = true, SuDirect = true, DirectDomains = { "bank.example" }, ProxyDomains = { "keep.ru" } };
 var siteConfig = ConfigBuilder.Build(profiles[0], siteState, 16810, 16811, true);
-File.WriteAllText(Path.Combine(output, "sites.json"), siteConfig.ToJsonString());
+foreach (var profile in profiles)
+    File.WriteAllText(Path.Combine(output, $"sites-{profile.Transport}.json"),
+        ConfigBuilder.Build(profile, siteState, 16810, 16811, true).ToJsonString());
 var siteRules = siteConfig["routing"]!["rules"]!.AsArray();
 string SiteRoute(string host) => siteRules.FirstOrDefault(rule => rule?["domain"]?.AsArray().Any(d => {
     var suffix = d!.GetValue<string>()[7..]; return host == suffix || host.EndsWith("." + suffix, StringComparison.OrdinalIgnoreCase);
@@ -82,6 +84,22 @@ Check(SiteRoute("bank.example") == "direct" && SiteRoute("пример.xn--p1ai"
 Check(siteRules[0]!["outboundTag"]!.GetValue<string>() == "proxy" && siteRules[1]?["process"] != null, "diagnostics and whole-app exclusions retain priority");
 Check(siteConfig["inbounds"]![0]?["sniffing"] == null && siteConfig["inbounds"]![1]!["sniffing"]!["routeOnly"]!.GetValue<bool>(), "domain detection excludes diagnostic inbound");
 Check(siteRules.Any(r => r?["inboundTag"]?.AsArray().Any(t => t?.GetValue<string>() == "most-sites-bootstrap") == true && r?["outboundTag"]?.GetValue<string>() == "direct"), "VPN endpoint DNS bootstraps outside its own tunnel");
+var scopedResolvers = siteConfig["dns"]!["servers"]!.AsArray().OfType<JsonObject>().ToArray();
+string DnsRoute(string host) {
+    var resolver = scopedResolvers.FirstOrDefault(r => r["domains"]!.AsArray().Any(d => {
+        var rule = d!.GetValue<string>();
+        if (rule.StartsWith("full:", StringComparison.Ordinal)) return host.Equals(rule[5..], StringComparison.OrdinalIgnoreCase);
+        var suffix = rule[7..]; return host.Equals(suffix, StringComparison.OrdinalIgnoreCase) || host.EndsWith("." + suffix, StringComparison.OrdinalIgnoreCase);
+    }));
+    var tag = (resolver?["tag"] ?? siteConfig["dns"]!["tag"])!.GetValue<string>();
+    return siteRules.First(r => r?["inboundTag"]?.AsArray().Any(t => t?.GetValue<string>() == tag) == true)!["outboundTag"]!.GetValue<string>();
+}
+Check(DnsRoute("sub.example.ru") == "direct" && DnsRoute("bank.example") == "direct", "bypassed site DNS uses the local exit on a bridge");
+Check(DnsRoute("login.keep.ru") == "proxy" && DnsRoute("example.ru.com") == "proxy", "forced VPN and unrelated domains keep DNS on the bridge");
+Check(DnsRoute(profiles[0].Host) == "direct" && DnsRoute("sub." + profiles[0].Host) == "proxy", "only the bridge endpoint itself bootstraps outside the bridge");
+Check(scopedResolvers.All(r => r["skipFallback"]!.GetValue<bool>()) &&
+    scopedResolvers.GroupBy(r => r["tag"]!.GetValue<string>()).All(g => g.Last()["finalQuery"]!.GetValue<bool>()),
+    "scoped DNS resolvers do not fall back across direct and VPN routes");
 var manualKey = AppModel.SelectionKey(state);
 var changedView = Storage.Clone(state); changedView.GroupFilter = "other";
 Check(AppModel.SelectionKey(changedView) == manualKey, "browsing filters does not change selected connection");
